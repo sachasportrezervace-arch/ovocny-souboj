@@ -16,7 +16,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   await A.goto(BASE + "?kolo=30");
   await A.fill("#fMe", "Mark"); await A.fill("#fOpp", "Radka"); await A.click("#bCreate");
   await A.waitForSelector("#msg");
-  const link = (await A.inputValue("#msg")).match(/https?:\/\/\S+#r\.[0-9a-z]+/)[0];
+  const link = (await A.innerText("#msg")).match(/https?:\/\/\S+#r\.[0-9a-z]+/)[0];
   await B.goto(link); await B.click("#bAccept"); await B.waitForSelector("#bReady");
   await A.locator("#bLobby").click({ timeout: 3000 }).catch(() => {}); // host se po přijetí přesune do lobby i sám
   await A.waitForSelector("#bReady:not([disabled])");

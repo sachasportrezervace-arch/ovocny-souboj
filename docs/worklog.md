@@ -6,6 +6,7 @@ Design-eye (taste lens, desktop + iPhone, oba hráči), 3 kola:
 - Kolo 2 (verdikt „skoro“): plovoucí text vs. banner naschvalu, kiwi nečitelné (světlejší, tmavé skvrny), meloun v setupu seděl na hraně tlačítka (mezera 14 px), čipy sázek na iPhonu v jednom řádku.
 - Kolo 3: verdikt „profi indie hra“ (silné, bez blokujících nálezů). Drobnost: půlky ovoce bez obrysu, hned opraveno (světlý obrys i na půlkách). Zbývá: váha Figtree v Safari na skutečném iPhonu (headless WebKit kreslí tence, `document.fonts` hlásí 800).
 Testy lokálně: sim 9/9, duel 49/49, feel 8/8, float 6/6.
+Nasazeno: commit 580767b, https://sachasportrezervace-arch.github.io/ovocny-souboj/. Živě: duel 49/49 (Chromium desktop 1440×900 + WebKit iPhone 13, skew 82 ms), float 6/6, `perf.cjs <URL> 4 1`: 59,8 fps průměr, 1% low 59,5, max 32 draw calls, GPU AMD (D3D11), CPU 4× zpomalené, Pixel 7 emulace. `tests/perf.cjs` opraven (#msg je teď odstavec, ne textarea).
 
 ## 2026-10-31 (Claude, nová deska, přesný řez, měřič naschválu, tempo)
 Hotovo lokálně (NEPUSHNUTO):
