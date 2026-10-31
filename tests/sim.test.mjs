@@ -1,6 +1,7 @@
 // node tests/sim.test.mjs – deterministický rozpis, sabotáže, počítání kol a série
 import assert from "node:assert/strict";
 import * as S from "../src/sim.js";
+import { createBot } from "../src/bot.js";
 let n = 0; const t = (name, fn) => { fn(); n++; console.log("ok", name); };
 t("stejné semínko = stejný rozpis", () => assert.deepEqual(S.schedule(42), S.schedule(42)));
 t("jiné semínko = jiný rozpis", () => assert.notDeepEqual(S.schedule(1), S.schedule(2)));
@@ -203,5 +204,49 @@ t("ve třech životech je prvních 15 s kola dosažitelných: každý kus je asp
       assert.ok(vis >= 0.9, `kus ${it.kind} v ${it.t} ms (semínko ${sd}) je ve viditelném okně jen ${vis.toFixed(2)} s`);
     }
   }
+});
+// ---------- sólo bot (src/bot.js) ----------
+const runBot = (seed, md, ms, tg = 50, mine = { score: 0, lives: 3 }) => {
+  const b = createBot({ sched: S.roundSchedule(seed, ms, md), md, rl: ms, tg, seed });
+  for (let c = 0; c <= ms; c += 20) { b.tick(c, mine); if (b.st.fin != null) break; }
+  b.finish(Math.min(ms, b.st.fin ?? ms));
+  return b.st;
+};
+t("bot: stejné semínko = stejný průběh (deterministický), jiné semínko = jiný výsledek", () => {
+  const a = runBot(123, "cas", 60000), b = runBot(123, "cas", 60000), c = runBot(124, "cas", 60000);
+  assert.deepEqual(a, b); assert.notDeepEqual(a.ev, c.ev);
+});
+t("bot: hratelný, ne dokonalý (60 s na čas): skóre v lidském pásmu, posílá naschvály, netrefí víc než 80 % kusů", () => {
+  const sc = [], sent = [];
+  for (let i = 1; i <= 12; i++) {
+    const seed = Math.imul(i, 2654435761) >>> 0, st = runBot(seed, "cas", 60000), sched = S.roundSchedule(seed, 60000, "cas");
+    const cuttable = sched.filter(x => x.kind !== "bomba").reduce((a, x) => a + (x.hp || 1), 0);
+    assert.ok(st.score >= 0 && st.cuts < cuttable * 0.8, `trefil ${st.cuts} z ${cuttable} kusů`);
+    sc.push(st.score); sent.push(st.sent);
+  }
+  const avg = sc.reduce((a, b) => a + b, 0) / sc.length, lo = Math.min(...sc), hi = Math.max(...sc);
+  assert.ok(avg > 70 && avg < 190, `průměr ${avg.toFixed(0)}`);
+  assert.ok(hi - lo > 25, "kola se liší (rozptyl " + (hi - lo) + ")");
+  assert.ok(sent.every(x => x >= 1) && sent.every(x => x <= 14), "naschvály " + sent);
+});
+t("bot: závod do 50 končí cílem v rozumném čase, tři životy končí smrtí, ne v prvních vteřinách", () => {
+  const fin = [], death = [];
+  for (let i = 1; i <= 10; i++) {
+    const seed = Math.imul(i, 40503) >>> 0, z = runBot(seed, "zavod", S.RACE_MS), l = runBot(seed, "zivoty", S.LIFE_MS);
+    if (z.fin != null) { assert.ok(z.score >= 50); fin.push(z.fin / 1000); }
+    if (l.fin != null) { assert.equal(l.lives, 0); death.push(l.fin / 1000); } else assert.ok(l.lives > 0);
+  }
+  assert.ok(fin.length >= 8, "cíle došlo " + fin.length + "/10");
+  assert.ok(fin.every(x => x >= 20 && x <= 90), "časy cíle " + fin);
+  assert.ok(death.length >= 6 && death.sort((a, b) => a - b)[Math.floor(death.length / 2)] >= 25, "smrti " + death);
+});
+t("bot: naschvály od hráče na něj působí (šmouha zhorší míření, bomba může sebrat body), ve finále neposílá", () => {
+  const seed = 777, ms = 60000, sched = S.roundSchedule(seed, ms, "cas");
+  const calm = () => createBot({ sched, md: "cas", rl: ms, seed }), hit = () => { const b = calm(); for (let t = 3000; t < 56000; t += 2600) b.recv("smouha", t); return b; };
+  let a = 0, c = 0;
+  for (const bot of [calm(), hit()]) { for (let t = 0; t <= ms; t += 20) bot.tick(t, { score: 0, lives: 3 }); bot.finish(ms); if (a === 0) a = bot.st.score; else c = bot.st.score; }
+  assert.ok(c < a, `se šmouhami ${c} < bez ${a}`);
+  const b = calm(); for (let t = 0; t <= ms; t += 20) b.tick(t, { score: 0, lives: 3 });
+  assert.ok(b.st.ev.every(e => e[2] < S.finaleStart(ms)), "naschvál ve finále: " + JSON.stringify(b.st.ev.filter(e => e[2] >= S.finaleStart(ms))));
 });
 console.log(n + "/" + n + " PASS");

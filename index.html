@@ -116,6 +116,7 @@ body[data-mode="zivoty"] .lives { display: flex; }
 .clock .r { font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-soft); margin-top: 2px; white-space: nowrap; }
 .clock .ser { font-family: var(--chalkf); font-size: 16px; line-height: 1; margin-top: 3px; color: var(--ink-soft); white-space: nowrap; }
 .clock .ser b { font-family: var(--disp); font-weight: 400; font-size: 15px; }
+.clock .ser .trn { letter-spacing: .02em; opacity: .85; }
 .clock .ser .x { color: #D36A1E; } .clock .ser .o { color: #1E9C83; }
 
 #net { position: fixed; left: 50%; bottom: calc(var(--floor-b) + 14px); transform: translateX(-50%); font-size: 13px; font-weight: 600; background: rgba(21,12,7,.85); padding: 6px 12px; border-radius: 99px; pointer-events: none; max-width: 92vw; text-align: center; }
@@ -187,6 +188,8 @@ body.finale .clock .modico { filter: drop-shadow(0 0 6px rgba(255,200,80,.8)); }
 .btn:disabled { background: #A9A08F; box-shadow: 0 4px 0 #857C6C; cursor: default; }
 .btn.alt { background: transparent; color: var(--ink); border: 2px solid var(--ink); box-shadow: none; font-size: 16px; padding: 11px 14px; margin-top: 10px; min-height: 48px; }
 .btn svg { width: 20px; height: 20px; flex: none; }
+/* Zkusit sám: vedlejší cesta pod hlavní výzvou, tišší než „Připravit výzvu“ */
+.btn.alt.solo { min-height: 44px; font-size: 15px; margin-top: 8px; border-color: var(--ink-soft); color: var(--ink-soft); }
 .row { display: flex; gap: 8px; margin-top: 10px; }
 .a-cta > .row:first-child { margin-top: 0; }
 /* Poslat a Kopírovat: stejná pevná výška, jednořádkový popisek, šířka půl na půl */
@@ -290,6 +293,8 @@ body[data-view="setup"] #iosHint:not([hidden]), body[data-view="intro"] #iosHint
   .tag[data-view=share] .cols, .tag[data-view=intro] .cols { grid-template-columns: minmax(0, 1fr); column-gap: 0; grid-template-areas: "head" "intro" "form" "cta" "how"; }
   .tag[data-view=setup] .cols { grid-template-areas: "head intro" "form how" "form deco" "cta cta"; }
   .tag[data-view=setup] .a-cta { align-self: stretch; margin-top: 14px; }
+  .tag[data-view=setup] .a-cta { display: grid; grid-template-columns: 2fr 1fr; gap: 12px; align-items: stretch; }
+  .tag[data-view=setup] .a-cta .btn { margin-top: 0; }
   .row .btn { font-size: 17px; }
   #toast { bottom: calc(var(--safe-b) + 40px); }
   #sound, #fs { background: rgba(21,12,7,.72); border: 2px solid rgba(241,230,208,.35); }

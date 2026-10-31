@@ -2,6 +2,13 @@
 
 PŘEVZATO 31. 10. – dodělává session na účtu P, jiná session sem nepíše.
 
+## 2026-10-31 večer (Claude, subagent: sólo režim „Zkusit sám“)
+- **Hotovo (lokálně, NEPUSHNUTO):** tlačítko „Zkusit sám“ na zakládací visačce (desktop vedle „Připravit výzvu“, mobil pod ním) a adresa `#solo`; lobby „Trénink proti Kuchtíkovi“ s výběrem módu; bot Kuchtík v novém `src/bot.js` (stejný rozpis kola jako hráč, tedy módy, zvláštnosti, desky i finále jako v ostré hře; míří na 50–68 % kusů, combo, měřič, naschvály oběma směry, ve třech životech chybuje s tempem, mírné dorovnání obtížnosti); na výsledku „Znovu“ + „Vyzvat soupeře“ (návrat na visačku, adresa bez `#solo`), nadpis „Vyhráváš!“ / „Vyhrává Kuchtík“, bez „chce odvetu“, bez čepele a sdílení; v hodinách nenápadné „trénink“ místo série.
+- **Lokální:** `room.solo` (žádná místnost, `pollPlan` → `null`, `commit()` slučuje metadata v paměti, `localWriter`); do localStorage nejde `ovs-seat/wins/seen-*`; nic do mantledb. Pojistka `introMine` a výzva pro dva nedotčeny (změny v main.js jsou za `room.solo`).
+- **Ověřeno (port 8801, exit 0):** `node tests/sim.test.mjs` 25/25 (+4 testy bota) · `node tests/solo.cjs` 43/43 (Chromium desktop `#solo` + WebKit iPhone 13 @1× tlačítkem; kolo na čas, závod, tři životy, naschvály oběma směry, 0 požadavků na mantledb zachycených i zahozených, úložiště, přechod do výzvy) · `mody.cjs` 21/21 · `duel.cjs` 49/49 · `vyzva-b.cjs` 26/26 · `rozmanitost.cjs` 32/32 · `kolize.cjs` 17/17. Poznámka: regresní série běžela před poslední úpravou textů sólo výsledku („Vyhráváš!“, bez „chce odvetu“; za `room.solo`), `solo.cjs` a `sim.test.mjs` běžely i po ní.
+- **Design-eye (2 kola):** 1. kolo „ještě ne“ (blokující: „Souboj bere Ty“ při výchozím jménu, „chce odvetu“ v sólu), opraveno; 2. kolo: obě opravy potvrzeny, jediný nález (červený useknutý nápis pod kartou) byl snímek zachycený během doznívajícího „Konec!“, po úpravě testu (počká 1,1 s) pryč. Verdikt po opravách: ano.
+- **Zbývá / NEOVĚŘENO:** push dělá hlavní session; živý test `#solo` na Pages (po pushi: `node tests/solo.cjs https://sachasportrezervace-arch.github.io/ovocny-souboj/`); skutečný iPhone (60 snímků/s) a pocit z obtížnosti bota (kalibrováno jen simulací a testovacím botem, ne člověkem); `?kolo=` zkracuje kola jen v testech.
+
 ## 2026-10-31 noc – NASAZENO 681ddd9 (Claude, účet P)
 - Push `81eb345..681ddd9` na main, Pages servírují HEAD (md5 main.js, sim.js, index.html = HEAD).
 - Živě na https://sachasportrezervace-arch.github.io/ovocny-souboj/: `node tests/rozmanitost.cjs <URL>` exit 0, 32/32 · `node tests/vyzva-b.cjs <URL>` exit 0, 26/26 (první běh 21/26 během přepínání verzí na Pages, druhý čistý).

@@ -10,6 +10,8 @@ speciální ovoce pošle soupeři sabotáž (bomba navíc, šťávová šmouha, 
 Proti stereotypu: každé kolo má jinou zvláštnost (zlaté ovoce, řady, obří meloun, měsíční tíže) a jinou desku
 (i roční období), kolo na čas končí finálovou fontánou bez bomb, kdo prohrává, nabíjí rychleji, a výhry v sérii
 odemykají stopy čepele.
+Na zkoušku jde hrát i sám: „Zkusit sám“ (nebo adresa `#solo`) pustí trénink proti botovi Kuchtíkovi se stejnými módy a zvláštnostmi kola, bez sítě,
+série a kosmetiky (viz `docs/mody.md`, sekce Sólo).
 
 ## Kdo a kde
 - Mark a Radka (rande z Tinderu, zatím se moc neznají). Hrají každý na svém telefonu, každý jinde,

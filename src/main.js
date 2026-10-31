@@ -2,6 +2,7 @@
 import * as Sim from "./sim.js";
 import * as Net from "./net.js";
 import { createScene } from "./scene.js";
+import { createBot, BOT_NAME, BOT_DAT } from "./bot.js";
 
 const $ = id => document.getElementById(id);
 const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -453,7 +454,7 @@ function viewSetup() {
     <input id="fStake" type="text" maxlength="40" placeholder="nebo napiš vlastní sázku" style="margin-top:8px">`,
     how: howTo("cas", Sim.ROUND_MS, TEST_TG || Sim.TARGET, "setupHow"),
     deco: DECO,
-    cta: `<button class="btn" id="bCreate">Připravit výzvu</button>`,
+    cta: `<button class="btn" id="bCreate">Připravit výzvu</button><button class="btn alt solo" id="bSolo" type="button">Zkusit sám</button>`,
   }), true);
   const chips = $("chips"), stake = $("fStake"), modes = $("modeChips");
   const picked = () => CHOICES.find(c => c.id === modes.querySelector("[aria-pressed=true]").dataset.c);
@@ -470,6 +471,11 @@ function viewSetup() {
     chips.querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", "false"));
     b.setAttribute("aria-pressed", String(!was));
     stake.value = was ? "" : b.textContent;
+  });
+  $("bSolo").addEventListener("click", () => {
+    const a = clampName($("fMe").value);
+    if (a) Net.store.set("ovs-name", a);
+    startSolo(picked(), a);
   });
   $("bCreate").addEventListener("click", async () => {
     const a = clampName($("fMe").value), b = clampName($("fOpp").value);
@@ -567,6 +573,7 @@ async function createRoom(a, b, st, picked) {
 const seatDoc = () => ({ k: 0, rdy: 0, sc: 0, ev: [], h: {}, f: {}, lv: Sim.LIVES, t: Date.now() });
 
 async function openFromHash() {
+  if (location.hash === "#solo") { startSolo(); return; }
   const m = /^#r\.([0-9a-z]{6,16})$/.exec(location.hash || "");
   if (!m) { viewSetup(); return; }
   if (view !== "error") showView("loading", `<h2>Otevírám souboj…</h2>`);
@@ -623,10 +630,86 @@ async function takeSeat(seat) {
   } catch { toast("Spojení nevyšlo, zkus to znovu."); }
 }
 
+// ---------- sólo: trénink proti botovi, bez sítě ----------
+// Stejné obrazovky i kolo jako ostrá hra, jen místnost je lokální objekt: zápisy zůstávají v paměti, soupeř je bot (src/bot.js) a nic se
+// neposílá do mantledb, nepočítá se do série, čepelí ani titulů. Adresa #solo otevře režim přímo.
+let soloBot = null, soloVer = "";
+const localWriter = doc => { let d = { ...doc }; return { doc: () => d, set(p) { d = { ...d, ...p }; }, onNet: null, stop() {}, pending: () => false }; };
+// čti-ověř-zapiš nad metadaty: v sólu se sloučí jen v paměti
+async function commit(ok) {
+  if (!room.solo) return Net.commitMeta(room.id, ok);
+  const next = ok(room.meta);
+  if (!next) return { d: room.meta, ok: false };
+  room.meta = { ...next, v: (room.meta.v || 0) + 1 };
+  return { d: room.meta, ok: true };
+}
+function startSolo(c, name) {
+  stopPoll(); soloBot = null;
+  c = c || CHOICES[1];
+  const a = name || clampName(Net.store.get("ovs-name") || "") || "Ty";
+  const meta = { app: "ovocny-souboj", v: 1, sx: Net.device, so: "bot", g: { a, b: BOT_NAME, st: "", md: c.md, rl: rlFor(c), tg: TEST_TG || Sim.TARGET, go: 0, sd: 0, mh: {} } };
+  room = { id: "solo", solo: true, meta, seat: "x", w: localWriter(seatDoc()), opp: seatDoc(), seenEv: 0, seenK: 0 };
+  document.body.dataset.solo = "1";
+  paintSeatColors(); setNet("");
+  history.replaceState(null, "", location.pathname + location.search + "#solo");
+  viewSoloLobby();
+}
+function leaveSolo() {
+  stopPoll(); soloBot = null; room = null; delete document.body.dataset.solo;
+  document.body.classList.remove("finale"); setBoost(false); setModIcon(null);
+  history.replaceState(null, "", location.pathname + location.search);
+  viewSetup();
+}
+function viewSoloLobby() {
+  phase = "lobby"; $("hud").hidden = false; hudNames(); setModIcon(null); setBoost(false);
+  const g = room.meta.g, md = Sim.modeOf(g.md), next = 11;
+  K = 0; $("timer").textContent = fmtClock(md === "cas" ? Math.round(g.rl / 1000) : 0); $("timer").classList.remove("low");
+  cells($("cellsMe"), 0); cells($("cellsOpp"), 0); hudSeries({}, {}, 1, md); hudOppState();
+  paintLives($("livesMe"), Sim.LIVES); paintLives($("livesOpp"), Sim.LIVES);
+  showView("lobby", `
+    <h2>Trénink proti ${esc(BOT_DAT)}</h2>
+    <p class="modeline" id="modeLine"><b>${modeName(md, g.tg)}.</b> ${modeLine(md, g.rl, g.tg)}</p>
+    <span class="lab" id="modeLab">Mód</span>
+    <div class="chips seg" id="modeChips" role="group" aria-labelledby="modeLab">${modeChips(choiceId(md, g.rl))}</div>
+    <button class="btn" id="bReady">Jdu do toho</button>
+    <button class="btn alt" id="bChallenge">Vyzvat soupeře</button>
+    ${howTo(md, g.rl, g.tg, "soloHow")}`);
+  $("bReady").addEventListener("click", () => ready(next));
+  $("bChallenge").addEventListener("click", leaveSolo);
+  $("modeChips").addEventListener("click", e => {
+    const b = e.target.closest("button"), c = b && CHOICES.find(x => x.id === b.dataset.c); if (!c) return;
+    $("modeChips").querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
+    const g2 = room.meta.g; g2.md = c.md; g2.rl = rlFor(c);
+    $("modeLine").innerHTML = `<b>${modeName(c.md, g2.tg)}.</b> ${modeLine(c.md, g2.rl, g2.tg)}`;
+    $("soloHow").querySelector("p").innerHTML = howText(c.md, g2.rl, g2.tg);
+    $("timer").textContent = fmtClock(c.md === "cas" ? Math.round(g2.rl / 1000) : 0);
+    hudSeries({}, {}, 1, c.md);
+  });
+}
+// bot hraje v taktu hodin kola; do dokumentu soupeře se propíše, jen když se něco změnilo (jako při čtení ze sítě)
+function soloTick(clock) {
+  const b = soloBot.tick(clock, { score: game.score, lives: game.lives }), o = room.opp;
+  const ver = b.score + "|" + b.lives + "|" + b.ev.length + "|" + b.fin;
+  if (ver === soloVer) return;
+  soloVer = ver;
+  o.sc = b.score; o.ev = b.ev; o.lv = b.lives;
+  if (b.fin != null) o.f = { ...o.f, [K]: b.fin };
+  onOpp(o);
+}
+// hráč skončil kolo: bot dohraje do téhož okamžiku a jeho výsledek se zapíše jako výsledek soupeře
+function soloConclude() {
+  const clock = Math.min(clockNow(), game.rl), b = soloBot.finish(clock), o = room.opp;
+  const f = { ...o.f };
+  if (b.fin != null) f[K] = b.fin;
+  else if (game.md === "zivoty" && game.endWhy === "mrtvy") f[K] = Math.max(Math.round(clock), (game.fin || 0) + 1);   // přežil hráče
+  room.opp = { ...o, sc: b.score, ev: b.ev, lv: b.lives, f, h: { ...o.h, [K]: b.score } };
+  cells($("cellsOpp"), b.score); paintLives($("livesOpp"), b.lives);
+}
+
 // ---------- polling: co a jak často číst podle fáze ----------
 let pollT = null, pollSeq = 0, fails = 0;
 function pollPlan() {
-  if (!room) return null;
+  if (!room || room.solo) return null;   // sólo nikdy nesahá do sítě
   if (phase === "play" || phase === "count") return { meta: false, opp: true, ms: 400 };
   const d = mine();
   const waiting = d && (d.rdy > (room.meta.g.go || 0) || (phase === "wait"));
@@ -707,7 +790,7 @@ async function startNext(k) {
   // semínko dalšího kola: modifikátor i deska jiné než v předchozím kole (stejné pro oba, čtou ho z g.sd)
   const sd = Sim.pickSeed(room.meta.g.sd || 0, () => crypto.getRandomValues(new Uint32Array(1))[0] / 4294967296);
   try {
-    const r = await Net.commitMeta(room.id, m => {
+    const r = await commit(m => {
       if (!m || (m.g.go || 0) >= k) return null;
       const md = Sim.modeOf(m.g.md);
       return { ...m, g: { ...m.g, go: k, sd, gm: md, gl: m.g.rl || Sim.lengthFor(md), mh: { ...(m.g.mh || {}), [k]: md } } };
@@ -718,6 +801,7 @@ async function startNext(k) {
   decide(false);
 }
 function ready(k) {
+  if (room.solo) room.opp.rdy = k;   // bot je vždy připravený
   room.w.set({ rdy: k }, true);
   decide(false);
   startPoll();
@@ -729,6 +813,7 @@ function hudNames() {
 }
 function hudOppState() {
   if (!room || !room.seat || phase === "play") return;
+  if (room.solo) { $("stateOpp").textContent = ""; $("stateMe").textContent = ""; return; }
   const o = room.opp, go = room.meta.g.go || 0, d = mine();
   let s = "";
   if (!room.meta.so) s = "zatím bez odpovědi";
@@ -743,7 +828,7 @@ function hudSeries(hx, ho, m, md) {
   const mine = room.seat === "x" ? ser : [ser[1], ser[0]];
   md = md || st.md;
   $("roundLabel").textContent = modeName(md, room.meta.g.tg || Sim.TARGET);
-  $("ser").innerHTML = m > 1 || mine[0] + mine[1] > 0 ? `série <b class="${room.seat}">${mine[0]}</b> : <b class="${other(room.seat)}">${mine[1]}</b>` : `souboj č. ${m}`;
+  $("ser").innerHTML = room.solo ? `<span class="trn">trénink</span>` : m > 1 || mine[0] + mine[1] > 0 ? `série <b class="${room.seat}">${mine[0]}</b> : <b class="${other(room.seat)}">${mine[1]}</b>` : `souboj č. ${m}`;
   document.body.dataset.mode = md;
   return st;
 }
@@ -767,6 +852,7 @@ function paintLives(el, n, pop) {
 }
 
 function viewLobby() {
+  if (room.solo) { viewSoloLobby(); return; }
   phase = "lobby"; $("hud").hidden = false; hudNames(); setModIcon(null);
   const g = room.meta.g, d = mine(), next = 11;
   const md = Sim.modeOf(g.md);
@@ -834,33 +920,34 @@ function viewResult(hx, ho) {
   const big = seat => md === "zivoty" ? fmtClock(sec(r["f" + seat])) + (lvOf(seat) > 0 && sec(r["f" + seat]) < cap / 1000 ? "+" : "") : r[seat];
   const [hiS, loS] = st.winner === "o" ? ["o", "x"] : ["x", "o"];
   const ser = Sim.series(hx, ho, histEx());
-  const head = st.winner ? `Souboj bere ${wName(st.winner)}` : "Remíza";
+  const head = room.solo ? (st.winner ? st.winner === me ? "Vyhráváš!" : `Vyhrává ${esc(BOT_NAME)}` : "Remíza") : st.winner ? `Souboj bere ${wName(st.winner)}` : "Remíza";   // v sólu bez jména hráče („Souboj bere Ty“)
   const headScore = `${head} ${big(hiS)} : ${big(loS)}${md === "cas" ? "" : ` (${modeName(md, g.tg).toLowerCase()})`}`;   // do chatu i se skóre
   const sub = seat => md === "zivoty" ? `${r[seat]} ${bodu(r[seat])}`
     : md === "zavod" && r["f" + seat] != null ? `v cíli za ${fmtClock(sec(r["f" + seat]))}`
-    : st.winner ? (st.winner === seat ? "bere souboj" : "chce odvetu") : "remíza";
+    : st.winner ? (st.winner === seat ? "bere souboj" : room.solo ? "" : "chce odvetu") : "remíza";   // bot odvetu nechce, v sólu poražený mlčí
   // čepel odemčená výhrami v sérii: pod skóre vzorek stopy, u mé nové se krátce vyskočí
-  const seenKey = "ovs-seen-" + room.id, seen = +Net.store.get(seenKey) || 0, myT = Sim.bladeTier(winsOf(me));
-  if (myT !== seen) Net.store.set(seenKey, String(myT));
-  const bl = seat => { const tr = Sim.bladeTier(winsOf(seat)); return tr ? `<div class="bl${seat === me && tr > seen ? " new" : ""}" data-tier="${tr}">${bladeSvg(tr, COLORS[seat])}</div>` : ""; };
+  const seenKey = "ovs-seen-" + room.id, seen = room.solo ? 0 : +Net.store.get(seenKey) || 0, myT = Sim.bladeTier(winsOf(me));
+  if (!room.solo && myT !== seen) Net.store.set(seenKey, String(myT));
+  const bl = seat => { if (room.solo) return ""; const tr = Sim.bladeTier(winsOf(seat)); return tr ? `<div class="bl${seat === me && tr > seen ? " new" : ""}" data-tier="${tr}">${bladeSvg(tr, COLORS[seat])}</div>` : ""; };
   const side = (seat, name) => `<div class="p ${seat}${st.winner === seat ? " win" : ""}"><div class="n">${esc(name)}</div><div class="s">${big(seat)}</div><div class="st">${sub(seat)}</div>${bl(seat)}</div>`;
   const oppRdy = room.opp && room.opp.rdy >= nextK;
   const stake = g.st ? `<div class="stake">${st.winner ? `${wName(other(st.winner))} platí: ${esc(g.st)}` : `Sázka (${esc(g.st)}) zůstává ve hře`}</div>` : "";
-  const hint = oppRdy ? `${esc(oppName())} už čeká na tebe.` : rdy ? "Odpočet naskočí, až klepne i soupeř. Nechce se mu? Pošli odkaz a vraťte se později." : "";
+  const hint = room.solo ? "" : oppRdy ? `${esc(oppName())} už čeká na tebe.` : rdy ? "Odpočet naskočí, až klepne i soupeř. Nechce se mu? Pošli odkaz a vraťte se později." : "";
   showView("result", cols({
     head: `<h2>${head}</h2>`,
     form: `<div class="vs">${room.seat === "o" ? side("o", g.b) + '<div class="mid">:</div>' + side("x", g.a) : side("x", g.a) + '<div class="mid">:</div>' + side("o", g.b)}</div>`,   // já vlevo, stejně jako v HUD
     intro: stake,
-    cta: `<span class="lab" id="nextLab">Odveta v módu</span>
+    cta: `<span class="lab" id="nextLab">${room.solo ? "Další kolo v módu" : "Odveta v módu"}</span>
     <div class="chips seg" id="modeChips" role="group" aria-labelledby="nextLab">${modeChips(choiceId(Sim.modeOf(g.md), g.rl))}</div>
-    <button class="btn" id="bNext" ${rdy ? "disabled" : ""}>${rdy ? "Čekám na soupeře…" : "Odveta"}</button>
+    <button class="btn" id="bNext" ${rdy && !room.solo ? "disabled" : ""}>${room.solo ? "Znovu" : rdy ? "Čekám na soupeře…" : "Odveta"}</button>
     ${hint ? `<p class="small" style="margin:8px 0 0;text-align:center">${hint}</p>` : ""}
-    <button class="btn alt" id="bShareRes">Poslat výsledek do chatu</button>`,
+    ${room.solo ? `<button class="btn alt" id="bChallenge">Vyzvat soupeře</button>` : `<button class="btn alt" id="bShareRes">Poslat výsledek do chatu</button>`}`,
   }), true);
   panel.dataset.sig = sig;
   $("modeChips").addEventListener("click", e => { const b = e.target.closest("button"); if (b) setMode(b); });
   $("bNext").addEventListener("click", () => ready(nextK));
-  $("bShareRes").addEventListener("click", async () => {
+  $("bChallenge")?.addEventListener("click", leaveSolo);
+  $("bShareRes")?.addEventListener("click", async () => {
     const t = `${headScore}${g.st && st.winner ? ` (${nameOfSeat(other(st.winner))} platí: ${g.st})` : ""}. Série ${g.a} ${ser[0]} : ${ser[1]} ${g.b}. Odveta? ${linkFor()}`;
     try { if (navigator.share) await navigator.share({ text: t }); else { await navigator.clipboard.writeText(t); toast("Zkopírováno."); } } catch {}
   });
@@ -872,7 +959,7 @@ async function setMode(b) {
   if (!c || b.getAttribute("aria-pressed") === "true") return;
   b.parentElement.querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
   try {
-    const r = await Net.commitMeta(room.id, m => m ? { ...m, g: { ...m.g, md: c.md, rl: rlFor(c), tg: m.g.tg || TEST_TG || Sim.TARGET } } : null);
+    const r = await commit(m => m ? { ...m, g: { ...m.g, md: c.md, rl: rlFor(c), tg: m.g.tg || TEST_TG || Sim.TARGET } } : null);
     if (r.d) room.meta = r.d;
     window.__ovs.log.push({ ev: "mode", md: c.md, at: Date.now() });
   } catch { toast("Změna módu nevyšla, zkus to znovu."); }
@@ -923,8 +1010,10 @@ function startFinale(clock) {
   window.__ovs.log.push({ ev: "finale", clock: Math.round(clock), at: Date.now(), score: game.score });
 }
 // výhry v sérii (z historie skóre obou hráčů): z nich se odvodí čepel; nejvyšší dosažená se pamatuje v localStorage (po znovunačtení stránky ještě nemusí být soupeřův doc)
-function winsOf(seat) { const [hx, ho] = hists(), ser = Sim.series(hx, ho, histEx()); return seat === "x" ? ser[0] : ser[1]; }
+function winsOf(seat) {
+  if (room.solo) return 0; const [hx, ho] = hists(), ser = Sim.series(hx, ho, histEx()); return seat === "x" ? ser[0] : ser[1]; }
 function myTier() {
+  if (room.solo) return 0;   // sólo se nepočítá do kosmetiky
   const w = winsOf(room.seat), key = "ovs-wins-" + room.id, c = +Net.store.get(key) || 0;
   if (w > c) Net.store.set(key, String(w));
   return Sim.bladeTier(Math.max(w, c));
@@ -958,6 +1047,10 @@ function beginCountdown(k, seed, rl, delay, md) {
   game.md = Sim.modeOf(md); game.tg = room.meta.g.tg || Sim.TARGET; game.lives = Sim.LIVES; game.fin = null; game.oppF = null; game.endWhy = null;
   for (const o of game.live) scene.remove(o); game.live = [];
   scene.clear();
+  if (room.solo) {   // soupeř je bot: nový dokument soupeře pro kolo, bot hraje stejný rozpis jako hráč
+    soloBot = createBot({ sched: game.sched, md: game.md, rl: game.rl, tg: game.tg, seed });
+    room.opp = { ...room.opp, k, sc: 0, ev: [], lv: Sim.LIVES, rdy: k, f: { ...(room.opp.f || {}) } }; soloVer = "";
+  }
   room.seenK = k; room.seenEv = (room.opp && room.opp.k === k) ? (room.opp.ev || []).length : 0;
   room.w.set({ k, sc: 0, ev: [], lv: Sim.LIVES }, true);
   showView(null);
@@ -976,6 +1069,7 @@ function beginCountdown(k, seed, rl, delay, md) {
 }
 function finishRound() {
   phase = "wait";
+  if (room.solo) soloConclude();
   document.body.classList.remove("finale"); setBoost(false); hideModBig();
   const d = mine();
   room.w.set({ sc: game.score, h: { ...d.h, [K]: game.score }, ...(game.fin != null ? { f: { ...(d.f || {}), [K]: game.fin } } : {}) }, true);
@@ -1045,6 +1139,7 @@ function sendSabotage(type, x, y, force) {
   game.ev = [...game.ev, [game.ev.length, type, Math.round(now - game.start)]];
   window.__ovs.log.push({ ev: "send", type, at: Date.now() });
   room.w.set({ ev: game.ev }, true);
+  if (room.solo && soloBot) soloBot.recv(type, now - game.start);
   sound.send();
   shot(x, y);
   const ch = $("chargeMe"); ch.classList.remove("fire"); void ch.offsetWidth; ch.classList.add("fire");   // pulz měřiče, bez textu
@@ -1315,6 +1410,7 @@ function frame(now) {
     if (game.queue.length && now - game.lastApplied > 2600 && !game.fin0 && clock + 800 < game.finAt) applySabotage(game.queue.shift());
     tryFire(now);
     if (!game.fin0 && clock >= game.finAt) startFinale(clock);
+    if (room.solo && soloBot) soloTick(clock);
     updateBoost();
     if (now - feelT > 100) {   // kolik kusů je právě vidět (pro tests/feel.cjs)
       feelT = now; let n = 0;
@@ -1380,7 +1476,7 @@ window.__ovs = {
   },
   clearLive() { for (const o of game.live) scene.remove(o); game.live = []; },
   board: id => paintBoard(id),   // jen pro screenshoty desek
-  state: () => ({ phase, view, K, mod: game.mod, theme: curTheme, blade: game.blade, boost: game.boost, fin0: game.fin0, finAt: game.finAt, scoreFin: game.scoreFin, finCuts: game.finCuts || 0, clock: phase === "play" ? Math.round(performance.now() - game.start) : null, score: game.score, md: game.md, lives: game.lives, fin: game.fin, oppF: game.oppF, why: game.endWhy, gmd: room && room.meta.g.md, opp: room && room.opp ? room.opp.sc : null, seat: room && room.seat, go: room && room.meta.g.go, rl: room && room.meta.g.rl, sent: game.sent, got: game.got, precise: game.precise, charge: game.charge, bombs: game.bombs, cuts: game.cuts, queue: game.queue.length, live: game.live.length }),
+  state: () => ({ phase, view, K, mod: game.mod, theme: curTheme, blade: game.blade, boost: game.boost, fin0: game.fin0, finAt: game.finAt, scoreFin: game.scoreFin, finCuts: game.finCuts || 0, clock: phase === "play" ? Math.round(performance.now() - game.start) : null, score: game.score, md: game.md, lives: game.lives, fin: game.fin, oppF: game.oppF, why: game.endWhy, gmd: room && room.meta.g.md, opp: room && room.opp ? room.opp.sc : null, solo: !!(room && room.solo), bot: soloBot ? { score: soloBot.st.score, lives: soloBot.st.lives, sent: soloBot.st.sent, got: soloBot.st.got, fin: soloBot.st.fin } : null, seat: room && room.seat, go: room && room.meta.g.go, rl: room && room.meta.g.rl, sent: game.sent, got: game.got, precise: game.precise, charge: game.charge, bombs: game.bombs, cuts: game.cuts, queue: game.queue.length, live: game.live.length }),
   targets: () => game.live.filter(o => !o.dead).map(o => ({ kind: o.kind, ice: !!o.ice, hp: o.hp || 0, ...scene.toScreen(o.g.position.x, o.g.position.y, o.g.position.z), r: o.r / scene.HALF_H * scene.h / 2 * scene.persp(o.g.position.z) })),
   fps: fpsStats,
   float,
