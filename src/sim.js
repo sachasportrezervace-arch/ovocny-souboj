@@ -3,14 +3,18 @@
 
 export const ROUND_MS = 120000;   // výchozí délka jediného kola
 export const ROUND_OPTIONS = [60000, 120000];
-export const G = 15;          // gravitace v logických jednotkách (půlka výšky obrazovky = 10)
+export const G = 17;          // gravitace v logických jednotkách (půlka výšky obrazovky = 10); vyšší než 15 = svižnější let
 export const Y0 = -12;        // ovoce startuje pod spodním okrajem
 export const FRUITS = ["meloun", "pomeranc", "svestka", "citron", "jablko", "kiwi"];
 export const KIND_NAMES = {
   meloun: "meloun", pomeranc: "pomeranč", svestka: "švestka", citron: "citron", jablko: "jablko",
   kiwi: "kiwi", karambola: "karambola", bomba: "bomba",
 };
-export const POINTS = { fruit: 1, karambola: 3, frozen: 2, bomba: -10 };
+export const POINTS = { fruit: 1, karambola: 3, frozen: 2, bomba: -10, precise: 2 };
+export const CHARGE_MAX = 18;   // měřič naschválu: řez +1, přesný řez +3, karambola +5; plný pošle soupeři naschvál
+export const CHARGE = { cut: 1, precise: 3, karambola: 5 };
+export const FIRE_ORDER = ["smouha", "mraz", "bomba"];
+export const PRECISE_R = 0.25;   // přesný řez: tah projde ve vnitřní čtvrtině poloměru ovoce (počítá se na obrazovce v main.js)
 export const SAB = {
   bomba: { send: "ti podstrčil(a) bombu", label: "bomba navíc" },
   smouha: { send: "ti cákl(a) šťávu do očí", label: "šmouha" },
@@ -30,36 +34,50 @@ export function rng(seed) {
 
 // Jedna položka: t (ms od startu kola), kind, u (-1…1 = vodorovná poloha zlomkem půlky šířky),
 // vu (vodorovná rychlost ve stejných jednotkách za s), apex (výška vrcholu, -10…10), spin (osa a rychlost)
+// Tempo (změřeno `node tests/tempo.mjs`): náběh od ~1 kusu/s do ~2,4 kusu/s, na konci vrchol; bomby jako koření
+// (~10 % kusů, prvních 6,5 s žádné); občas „opona“ 4–6 kusů v řadě, kterou jde vzít jedním tahem na combo.
+const smooth = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+export const rate = p => 0.9 + 1.0 * p + 1.3 * smooth(0.55, 1, p);   // kusů za sekundu v podílu kola p
 export function schedule(seed, roundMs = ROUND_MS) {
   const r = rng(seed);
   const out = [];
   const pick = arr => arr[Math.floor(r() * arr.length)];
-  const item = (t, kind) => {
-    const u = (r() * 2 - 1) * 0.78;
-    const vu = (-u * 0.55 + (r() - 0.5) * 0.35);
-    const apex = 2 + r() * 6;
+  const item = (t, kind, o = {}) => {
+    const u = o.u !== undefined ? o.u : (r() * 2 - 1) * 0.78;
+    const vu = o.vu !== undefined ? o.vu : (-u * 0.55 + (r() - 0.5) * 0.35);
+    const apex = o.apex !== undefined ? o.apex : 2.2 + r() * 4.8;
     const ax = [r() - 0.5, r() - 0.5, r() - 0.5];
     const n = Math.hypot(...ax) || 1;
     out.push({ id: out.length, t: Math.round(t), kind, u, vu, apex, spin: [ax[0] / n, ax[1] / n, ax[2] / n, 1.5 + r() * 3] });
   };
   // karamboly (posílají bombu navíc) jsou rozložené rovnoměrně, cca po 12 s, aby měl každý stejnou šanci
-  const stars = [], nStars = Math.max(1, Math.round(roundMs / 12000));
-  for (let i = 0; i < nStars; i++) stars.push(Math.round(roundMs * (0.1 + 0.8 * (i + 0.5 + (r() - 0.5) * 0.3) / nStars)));
+  // první karambola je zaručeně brzy (4–6 s), aby oba hned poslali a dostali první naschvál; zbylé se rozloží do 20–90 % kola
+  const stars = [Math.round(4000 + r() * 1800)], nStars = Math.max(1, Math.round(roundMs / 12000));
+  for (let i = 0; i < nStars - 1; i++) stars.push(Math.round(roundMs * (0.2 + 0.7 * (i + 0.5 + (r() - 0.5) * 0.3) / (nStars - 1))));
   let t = 900;
   const end = roundMs - 2600;
   while (t < end) {
     const p = t / roundMs;
     const roll = r();
-    const size = p < 0.15 ? (roll < 0.6 ? 1 : 2) : p < 0.5 ? 1 + Math.floor(roll * 3) : 1 + Math.floor(roll * 4);
-    const stagger = r() < 0.45;
-    let bombs = 0;
-    for (let i = 0; i < size; i++) {
-      const bombP = t < 7000 ? 0 : 0.07 + 0.13 * p;   // prvních 7 s bez bomb, pak roste s podílem času
-      const kind = bombs === 0 && size > 1 && r() < bombP * 2.2 ? "bomba" : (size === 1 && r() < bombP ? "bomba" : pick(FRUITS));
-      if (kind === "bomba") bombs++;
-      item(t + (stagger ? i * 190 : i * 25), kind);
+    // velikost vlny: zpočátku jednotlivé kusy a dvojice, později trojice a „opony“ 4–6
+    const pBurst = p < 0.18 ? 0 : 0.05 + 0.07 * p, pSingle = 0.58 - 0.32 * p, pPair = 0.28;
+    const size = roll < pBurst ? 4 + Math.floor(r() * 3) : roll < pBurst + pSingle ? 1 : roll < pBurst + pSingle + pPair ? 2 : 3;
+    const burst = size >= 4, stagger = !burst && r() < 0.45;
+    const bombP = t < 6500 ? 0 : 0.068 + 0.088 * p;
+    // nejvýš jedna bomba ve vlně; v oponě nikdy na kraji, ať se dá obejít tahem
+    const bombAt = r() < Math.min(0.9, bombP * size * 0.85) ? (burst ? 1 + Math.floor(r() * (size - 2)) : Math.floor(r() * size)) : -1;
+    if (burst) {
+      // řada s mírným obloukem: stejný čas vrcholu, rozestup ~0,26, aby se vešla do jednoho tahu
+      const dir = r() < 0.5 ? 1 : -1, du = 0.2 + r() * 0.08, u0 = -dir * du * (size - 1) / 2 + (r() - 0.5) * 0.2;
+      const base = 3 + r() * 2.6, bow = (r() - 0.5) * 0.7;
+      for (let i = 0; i < size; i++) {
+        const u = u0 + dir * du * i, k = i - (size - 1) / 2;
+        item(t + i * 75, i === bombAt ? "bomba" : pick(FRUITS), { u, vu: -u * 0.2, apex: base + bow * k + 0.3 * (r() - 0.5) });
+      }
+    } else {
+      for (let i = 0; i < size; i++) item(t + (stagger ? i * 190 : i * 25), i === bombAt ? "bomba" : pick(FRUITS));
     }
-    t += 1300 - 560 * p + r() * 380 + (stagger ? size * 120 : 0);
+    t += (size / rate(p)) * (0.8 + r() * 0.4) * 1000 + (stagger ? size * 60 : 0) + (burst ? 250 : 0);
   }
   for (const st of stars) item(st, "karambola");
   out.sort((a, b) => a.t - b.t || a.id - b.id);

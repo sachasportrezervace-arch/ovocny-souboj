@@ -154,7 +154,9 @@ export function createScene(canvas, opts = {}) {
 
   const ramp = toonRamp();
   const skinMat = new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: ramp });
-  const outlineMat = new THREE.MeshBasicMaterial({ color: 0x1B1A17, side: THREE.BackSide });
+  // světlý obrys: na tmavé desce drží siluetu švestky, kiwi, melounu i bomby (bomba má vlastní, teplejší)
+  const outlineMat = new THREE.MeshBasicMaterial({ color: 0xF6EBD3, side: THREE.BackSide });
+  const bombOutlineMat = new THREE.MeshBasicMaterial({ color: 0xFF7A4D, side: THREE.BackSide });
   const iceMat = new THREE.MeshToonMaterial({ color: 0xC4ECFF, gradientMap: ramp, transparent: true, opacity: 0.62, emissive: 0x2C6A8F, emissiveIntensity: 0.35 });
   const iceGeo = new THREE.IcosahedronGeometry(1.42, 0);
 
@@ -231,6 +233,11 @@ export function createScene(canvas, opts = {}) {
       emit(x, y, 1.5, Math.cos(a) * s, Math.sin(a) * s + speed * 0.25, color, size * (0.6 + Math.random() * 0.8), life * (0.7 + Math.random() * 0.5));
     }
   }
+  // prstenec jisker pro přesný řez
+  function ring(x, y, color, n = 20) {
+    if (opts.reduced) n = 8;
+    for (let k = 0; k < n; k++) { const a = k / n * Math.PI * 2; emit(x, y, 1.5, Math.cos(a) * 15, Math.sin(a) * 15, color, 0.7, 0.55, 0.1); }
+  }
   function stepParticles(dt) {
     for (let i = 0; i < PMAX; i++) {
       if (pLife[i] <= 0) { pSize[i] = 0; continue; }
@@ -254,7 +261,7 @@ export function createScene(canvas, opts = {}) {
     const mesh = new THREE.Mesh(geo, skinMat);
     const sc = kind === "bomba" ? [1, 1, 1] : L.scale;
     mesh.scale.set(sc[0] * r, sc[1] * r, sc[2] * r);
-    const line = new THREE.Mesh(geo, outlineMat);
+    const line = new THREE.Mesh(geo, kind === "bomba" ? bombOutlineMat : outlineMat);
     line.scale.setScalar(kind === "karambola" ? 1.08 : 1.07);
     mesh.add(line);
     g.add(mesh);
@@ -347,7 +354,7 @@ export function createScene(canvas, opts = {}) {
 
   const api = {
     w: 1, h: 1, HALF_H, get halfW() { return halfW; }, get fieldHalf() { return fieldHalf; }, get pixelRatio() { return pxRatio; },
-    renderer, spawn, place, remove, slice, crack, explode, burst, resize, setPixelRatio, toScreen,
+    renderer, spawn, place, remove, slice, crack, explode, burst, ring, resize, setPixelRatio, toScreen,
     live, halves,
     step(dt) { stepParticles(dt); stepHalves(dt); },
     render() { renderer.render(scene, camera); },

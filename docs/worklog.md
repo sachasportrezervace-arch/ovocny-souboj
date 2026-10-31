@@ -1,5 +1,16 @@
 # Ovocný souboj – deník
 
+## 2026-10-31 (Claude, nová deska, přesný řez, měřič naschválu, tempo)
+Hotovo lokálně (NEPUSHNUTO):
+- Pozadí: pryč kopce, okénka, bedny, markýza, žárovky. Jedna tmavá dřevěná deska (canvas `#board`, kresba let, suky, zámky prken, viněta), jemné mizející skvrny šťávy (`#stains`). Ovoce má světlý obrys, bomba oranžový. Cedulky HUD bez provázků u horní hrany, visačka přibitá hřebíčkem. DESIGN.md přepsán.
+- Share karta: Poslat/Kopírovat stejná výška (měřeno offsetem, visačka je pootočená), zpráva jako text bez posuvníku, nadpis „Pošli výzvu, ať Radka ví“ s balance, bez emoji.
+- Přesný řez: přímka tahu ve vnitřní čtvrtině poloměru = +2 body (`Sim.POINTS.precise`), „Přesně!“, prstenec jisker, ting, haptika; `__ovs.precise`, log `precise`.
+- Twist (na přání Marka): měřič naschválu na vlastní cedulce (řez +1, přesný +3, karambola +5, plný 18 pošle šmouhu/mráz/bombu), zaručená karambola ve 4–6 s, přesně rozseknutý led vrací mráz („Odraženo!“). Nápověda to říká v jednom odstavci.
+- Tempo (`node tests/tempo.mjs 120`, 8 semínek) před -> po: ovoce/s po čtvrtinách 0,95/1,20/1,57/1,45 -> 0,95/1,12/1,40/2,08; bomby 20,1 % -> 8,4 % kusů; naráz vidět prům. 4,8 (max 14) -> 4,2 (max 13); vlny 4+ 7,6 -> 8,9 za kolo, ale nově jako řada v jednom tahu; gravitace 15 -> 17 (svižnější let), výška vrcholu 2…8 -> 2,2…7.
+- Testy: sim 9/9, duel 49/49 (Chromium desktop + WebKit iPhone 13), feel.cjs (60 s, nový). Screenshoty `tests/shots/feel-*` a `duel` sady.
+- feel 60 s (A desktop / B iPhone): první naschvál doručen po 6–8 s, zpoždění ~0,9 s, šmouha 2–10 s a nikdy nezakryje skóre, naráz vidět prům. ~3, max 9–10, přesných řezů 4–20 na stranu.
+Neověřeno: skutečný telefon; v testu se SW vykreslením (~20–26 fps) desktopový bot sekal výrazně hůř než iPhone bot (skóre se liší o desítky bodů, je to artefakt bota, ne hry); lidský pocit z hranice 25 % poloměru a z četnosti naschválů (měřič 18) je třeba ověřit Markem.
+
 ## 2026-10-31 (Claude, opravy po design review)
 Hotovo (lokálně, nepushnuto): iPhone setup se vejde i s CTA (jména vedle sebe, menší čipy, návod sbalený, hint jen na setup/přijetí/lobby), čeština bez nepřímého pádu jmen, desktop visačka 720 px ve dvou sloupcích uprostřed na provázku z markýzy (výzva, přijetí, výsledek také), HUD max 980 px, prázdný stav cedulky skrytý, výsledek jen „Souboj bere X“ + velká čísla, kontrast placeholderu, bez osiřelého špendlíku, tlačítka fs/zvuk na desktopu s dřevěným podkladem, telefon na šířku ve dvou sloupcích. Testy: sim 7/7, duel 42/42. Figtree 800 se načítá (document.fonts loaded); tence se kreslí jen v Playwright WebKitu, na skutečném iPhonu neověřeno.
 

@@ -14,7 +14,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 // před snímkem se počká na doběhnutí animace visačky (hang, 0,7 s); wait = 0 pro snímek za hry
 const shot = async (p, name, wait = 900) => { if (wait) await sleep(wait); await p.screenshot({ path: path.join(SH, name + ".png") }); };
 // vejde se obrazovka bez scrollu panelu a tlačítko je nad bednami?
-const fitDesk = p => p.evaluate(() => { const r = q => document.querySelector(q).getBoundingClientRect(), pn = document.getElementById("panel"); return { sh: pn.scrollHeight, ch: pn.clientHeight, cb: (document.querySelector("#bCreate, #bNext, #bReady") || document.querySelector(".tag")).getBoundingClientRect().bottom, crates: r("#crates").top, tagW: r(".tag").width, tagB: r(".tag").bottom }; });
+const fitDesk = p => p.evaluate(() => { const r = q => document.querySelector(q).getBoundingClientRect(), pn = document.getElementById("panel"); return { sh: pn.scrollHeight, ch: pn.clientHeight, cb: (document.querySelector("#bCreate, #bNext, #bReady") || document.querySelector(".tag")).getBoundingClientRect().bottom, crates: innerHeight - 8, tagW: r(".tag").width, tagB: r(".tag").bottom }; });
 const st = p => p.evaluate(() => __ovs.state());
 const waitPhase = (p, ph, timeout = 30000) => p.waitForFunction(ph => [].concat(ph).includes(__ovs.state().phase), ph, { timeout });
 const DESK = { viewport: { width: 1440, height: 900 } };
@@ -48,7 +48,9 @@ async function bot(p, untilMs) {
 
 (async () => {
   const bA = await chromium.launch(), bB = await webkit.launch();
+  const SHARE_STUB = () => { navigator.share = async () => {}; };   // ať je na share kartě vidět i tlačítko Poslat
   const ctxA = await bA.newContext(DESK), ctxB = await bB.newContext({ ...devices["iPhone 13"] });
+  await ctxA.addInitScript(SHARE_STUB);
   const A = await ctxA.newPage(), B = await ctxB.newPage();
   const errs = [];
   const watch = (n, p) => {
@@ -108,10 +110,23 @@ async function bot(p, untilMs) {
   await A.click("#chips button:has-text('kafe')");
   await A.click("#bCreate");
   await A.waitForSelector("#msg", { timeout: 15000 });
-  const msg = await A.inputValue("#msg");
+  const msg = await A.innerText("#msg");
   const link = (msg.match(/https?:\/\/\S+#r\.[0-9a-z]+/) || [])[0];
   check("výzva: zpráva má odkaz, jméno, sázku a délku kola", !!link && msg.includes("Mark") && msg.includes("kafe") && /jedno kolo na/.test(msg) && !/tří kol/.test(msg), link);
   await shot(A, "desktop-2-vyzva");
+  const shareGeo = p => p.evaluate(() => {
+    const R = q => document.querySelector(q).getBoundingClientRect(), m = document.getElementById("msg"), pn = document.getElementById("panel"), h2 = document.querySelector(".tag h2");
+    // visačka je pootočená o -1°, proto se měří v nepootočeném rozvržení (offset*), ne přes getBoundingClientRect
+    const a = document.getElementById("bShare"), b = document.getElementById("bCopy"), tag = document.querySelector(".tag"), lh = parseFloat(getComputedStyle(h2).lineHeight) || parseFloat(getComputedStyle(h2).fontSize) * 1.05;
+    return { shareH: a.offsetHeight, copyH: b.offsetHeight, dTop: Math.abs(a.offsetTop - b.offsetTop), dBot: Math.abs(a.offsetTop + a.offsetHeight - b.offsetTop - b.offsetHeight), gap: b.offsetLeft - a.offsetLeft - a.offsetWidth,
+      msgFit: m.scrollHeight <= m.clientHeight + 1 && getComputedStyle(m).overflowY !== "scroll" && getComputedStyle(m).overflowY !== "auto", panelFit: pn.scrollHeight <= pn.clientHeight + 1,
+      noTextarea: !document.querySelector("textarea"), h2Lines: Math.round(h2.getBoundingClientRect().height / lh), h2Balance: getComputedStyle(h2).textWrap, inside: b.offsetLeft + b.offsetWidth <= tag.offsetWidth && a.offsetLeft >= 0, vw: innerWidth };
+  });
+  const noEmoji = t => !/\p{Extended_Pictographic}/u.test(t);
+  const gA = await shareGeo(A);
+  check("share desktop: Poslat a Kopírovat stejně vysoká, zarovnaná, uvnitř visačky", gA.shareH === gA.copyH && gA.dTop < 0.5 && gA.dBot < 0.5 && gA.inside, JSON.stringify(gA));
+  check("share desktop: zpráva celá vidět bez posouvání (text, ne textarea), nadpis ≤ 2 řádky s balance", gA.msgFit && gA.panelFit && gA.noTextarea && gA.h2Lines <= 2 && gA.h2Balance === "balance", JSON.stringify(gA));
+  check("share: ve zprávě do chatu není emoji", noEmoji(msg), msg.slice(0, 60));
   check("výzva: věta bez skloňování jména", /ať Radka ví/.test(await A.locator(".tag h2").innerText()));
   const srcMain = require("fs").readFileSync(path.join(__dirname, "../src/main.js"), "utf8");
   check("texty: žádné jméno v nepřímém pádě (k/na/ji + jméno)", !/letí k \$\{/.test(srcMain) && !/Pošli ji\$\{g\.b \? " "/.test(srcMain) && !/Čekám na \$\{n\}/.test(srcMain));
@@ -119,11 +134,16 @@ async function bot(p, untilMs) {
   const tagBox = await A.locator(".tag").boundingBox();
   check("desktop: visačka vycentrovaná, nepřetéká přes bedny", Math.abs(tagBox.x + tagBox.width / 2 - 720) < 20 && tagBox.y + tagBox.height <= (await fitDesk(A)).crates, `střed ${Math.round(tagBox.x + tagBox.width / 2)} px`);
   // iPhone: výzva na vlastním zařízení pro screenshot
-  const ctxB2 = await bB.newContext({ ...devices["iPhone 13"] }), B2 = await ctxB2.newPage();
+  const ctxB2 = await bB.newContext({ ...devices["iPhone 13"] }); await ctxB2.addInitScript(SHARE_STUB); const B2 = await ctxB2.newPage();
   await B2.goto(BASE); await B2.fill("#fMe", "Mark"); await B2.fill("#fOpp", "Radka"); await B2.click("#lenChips button:has-text('1 minuta')"); await B2.click("#bCreate");
   await B2.waitForSelector("#msg", { timeout: 15000 });
-  check("výzva (běžný režim): zpráva uvádí skutečnou délku kola 1 minutu", /jedno kolo na 1 minutu\./.test(await B2.inputValue("#msg")));
-  await shot(B2, "iphone-2-vyzva"); await ctxB2.close();
+  check("výzva (běžný režim): zpráva uvádí skutečnou délku kola 1 minutu", /jedno kolo na 1 minutu\./.test(await B2.innerText("#msg")));
+  await shot(B2, "iphone-2-vyzva");
+  const gB = await shareGeo(B2);
+  check("share iPhone na výšku: Poslat a Kopírovat stejně vysoká, zarovnaná, uvnitř visačky", gB.shareH === gB.copyH && gB.dTop < 0.5 && gB.dBot < 0.5 && gB.inside, JSON.stringify(gB));
+  check("share iPhone: zpráva celá vidět bez posouvání, nadpis ≤ 2 řádky s balance", gB.msgFit && gB.panelFit && gB.noTextarea && gB.h2Lines <= 2 && gB.h2Balance === "balance", JSON.stringify(gB));
+  check("share iPhone: ve zprávě není emoji", noEmoji(await B2.innerText("#msg")));
+  await ctxB2.close();
 
   // 2) Radka otevře odkaz ve WebKitu a přijme
   await B.goto(link);
@@ -165,6 +185,7 @@ async function bot(p, untilMs) {
     await Promise.all([waitPhase(A, "result", 20000), waitPhase(B, "result", 20000)]);
     const [ea, eb] = await Promise.all([st(A), st(B)]);
     sentTotal += ea.sent + eb.sent; gotTotal += ea.got + eb.got;
+    check(`${label}: přesné řezy se počítají (__ovs.precise)`, (ea.precise + eb.precise) >= 1, `A ${ea.precise} B ${eb.precise}`);
     const [ha, hb] = await Promise.all([A.locator(".tag h2").innerText(), B.locator(".tag h2").innerText()]);
     check(`${label}: konec kola, vítěz souboje stejný na obou stranách`, ha === hb && /^(Souboj bere \S+|Remíza)$/.test(ha), `${ha} | skóre A ${ea.score} B ${eb.score}`);
     const sB = await B.evaluate(() => ({ y: scrollY, top: document.scrollingElement.scrollTop }));
