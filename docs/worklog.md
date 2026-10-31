@@ -2,6 +2,12 @@
 
 PŘEVZATO 31. 10. – dodělává session na účtu P, jiná session sem nepíše.
 
+## 2026-10-31 noc – NASAZENO 681ddd9 (Claude, účet P)
+- Push `81eb345..681ddd9` na main, Pages servírují HEAD (md5 main.js, sim.js, index.html = HEAD).
+- Živě na https://sachasportrezervace-arch.github.io/ovocny-souboj/: `node tests/rozmanitost.cjs <URL>` exit 0, 32/32 · `node tests/vyzva-b.cjs <URL>` exit 0, 26/26 (první běh 21/26 během přepínání verzí na Pages, druhý čistý).
+- Lokálně před pushem: sim 21/21, kolize 17/17, duel 49/49, mody 21/21 (2×), vyzva-b 26/26, rozmanitost 32/32; design-eye „profi indie hra“.
+- Dál: sólo režim (`HRY-SOLO-2026-10-31.md`) rozdělaný subagentem, nasadí se zvlášť.
+
 ## 2026-10-31 večer (Claude, subagent: tři životy + design-eye 2. kolo)
 - **Příčina pádu „tři životy“ (z dat):** (1) headless WebKit bez GPU kreslil iPhone při DPR 3 jen ~6 snímků/s (změřeno i na starším commitu b131589, závisí jen na DPR: @1× 50, @2× 16, @3× 6), bot viděl zastaralé polohy; (2) ve hře ~3 % kusů vyjelo bokem z obrazovky (`spreadOut` posune `u`, `vu` zůstane, kus plul k okraji až mimo displej, bot pak začínal tah mimo viewport). Dvě další varianty selhání: zpoždění `oppF` přes mantledb.sh až 5,7 s (síť, mimo hru).
 - **Opravy:** `Sim.keepIn`/`KEEP_X` v `src/sim.js` (bez bomb), bomba hledá místo i v širším rozsahu drah; `tests/sim.test.mjs` +2 regresní testy (okraj, dosažitelnost prvních 15 s); `tests/mody.cjs`: tah bota nezačíná mimo displej a B jede na deviceScaleFactor 1 (komentář v kódu).
