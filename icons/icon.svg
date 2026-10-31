@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Ovocný souboj: plátek melounu rozseknutý tahem čepele; paleta z DESIGN.md -->
+  <rect width="512" height="512" fill="#14223D"/>
+  <path d="M0 512V420c70-40 150-30 220-10s190 20 292-30v132z" fill="#192A47"/>
+  <g transform="rotate(-18 256 270)">
+    <path d="M76 250a180 180 0 0 0 360 0z" fill="#1D5428"/>
+    <path d="M92 250a164 164 0 0 0 328 0z" fill="#2F7D3A"/>
+    <path d="M110 250a146 146 0 0 0 292 0z" fill="#F1E6D0"/>
+    <path d="M122 250a134 134 0 0 0 268 0z" fill="#E8414B"/>
+    <path d="M170 250a86 86 0 0 0 172 0z" fill="#F2626A"/>
+    <g fill="#1B1A17">
+      <ellipse cx="196" cy="300" rx="9" ry="15" transform="rotate(-20 196 300)"/>
+      <ellipse cx="256" cy="330" rx="9" ry="15"/>
+      <ellipse cx="316" cy="300" rx="9" ry="15" transform="rotate(20 316 300)"/>
+      <ellipse cx="226" cy="364" rx="8" ry="13" transform="rotate(-10 226 364)"/>
+      <ellipse cx="288" cy="366" rx="8" ry="13" transform="rotate(10 288 366)"/>
+    </g>
+    <rect x="62" y="244" width="388" height="12" rx="6" fill="#14223D"/>
+  </g>
+  <path d="M70 120L452 232" stroke="#FF9A4D" stroke-width="22" stroke-linecap="round" opacity=".55"/>
+  <path d="M70 120L452 232" stroke="#FFFCF2" stroke-width="8" stroke-linecap="round"/>
+  <g fill="#FFD27A"><circle cx="112" cy="84" r="5"/><circle cx="400" cy="70" r="4"/><circle cx="440" cy="120" r="3"/></g>
+</svg>

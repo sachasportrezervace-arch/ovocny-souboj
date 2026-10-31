@@ -1,5 +1,14 @@
 # Ovocný souboj – deník
 
+## 2026-10-31 (Claude, 2. kolo: jedno kolo, mobil, desktop)
+Hotovo (lokálně, NEPUSHNUTO, nasazení a design review dělá hlavní session):
+- Jedno kolo místo nejlepší ze 3: délka 1/2 min (výchozí 2) v meta `g.rl`, `?kolo=N` (10–120 s) má přednost; K = zápas*10+1, odveta = další zápas; `Sim.matchState/series`, `schedule` škálovaný (karambola cca po 12 s). Texty, m:ss, HUD „Souboj č. N“ + série.
+- Fullscreen tlačítko, iOS nápověda (Net.store `ovs-ioshint`), manifest + ikony (`icons/`, `tools/make-icons.cjs`), apple meta.
+- Mobil: dvh/innerHeight, safe-area, zákaz zoomu a gest, panel scrolluje sám, cíle ≥ 44 px. Desktop: vlastní rozvržení, markýza/bedny v pixelech, omezené pole spawnu, kurzor.
+- Stavy: chyba spojení s „Zkusit znovu“, soupeř 20 s po konci nedohrál (Počkat dál / Poslat odkaz), haptika (bomba, naschvál, konec kola, combo).
+- Testy: `sim.test.mjs` 7/7, `duel.cjs` (Chromium desktop 1440×900 + WebKit iPhone 13) 32/32.
+Neověřeno: skutečný iPhone/Android (fullscreen, vibrace, scroll panelu dotykem), landscape telefon jen z CSS, perf.cjs po změnách nespuštěn.
+
 ## 2026-10-31 (Claude, session od piskvorky-design)
 Hotovo:
 - Hra v `index.html` + `src/{sim,net,scene,main}.js`, three.js r170 připnutý v `vendor/three.module.min.js` (MIT, licence vedle).

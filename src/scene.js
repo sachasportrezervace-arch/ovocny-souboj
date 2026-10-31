@@ -245,7 +245,7 @@ export function createScene(canvas, opts = {}) {
   }
 
   // ---------- kusy ve hře ----------
-  let halfW = HALF_H;
+  let halfW = HALF_H, fieldHalf = HALF_H;   // fieldHalf: vodorovný rozsah spawnu (na ultra-širokém displeji užší než obraz)
   const live = new Set(), halves = [];
   function spawn(kind, { frozen = false, band = "#E23B3B" } = {}) {
     const g = new THREE.Group();
@@ -267,7 +267,7 @@ export function createScene(canvas, opts = {}) {
   }
   const q = new THREE.Quaternion();
   function place(o, xn, y, t) {
-    o.g.position.set(xn * halfW, y, 0);
+    o.g.position.set(xn * fieldHalf, y, 0);
     q.setFromAxisAngle(o.spinAxis, o.spin * t);
     o.mesh.quaternion.copy(q);
     if (o.ice) o.ice.quaternion.copy(q);
@@ -334,6 +334,7 @@ export function createScene(canvas, opts = {}) {
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
     halfW = HALF_H * camera.aspect;
+    fieldHalf = halfW * Math.min(w, h * 1.8, 1900) / w;   // hrací pole nejvýš 1,8× výška a 1900 px
     pMat.uniforms.uScale.value = h * pxRatio / (2 * Math.tan(THREE.MathUtils.degToRad(FOV / 2)));
     api.w = w; api.h = h;
   }
@@ -345,7 +346,7 @@ export function createScene(canvas, opts = {}) {
   const toScreen = (x, y) => ({ x: (x / halfW + 1) / 2 * api.w, y: (1 - y / HALF_H) / 2 * api.h });
 
   const api = {
-    w: 1, h: 1, HALF_H, get halfW() { return halfW; }, get pixelRatio() { return pxRatio; },
+    w: 1, h: 1, HALF_H, get halfW() { return halfW; }, get fieldHalf() { return fieldHalf; }, get pixelRatio() { return pxRatio; },
     renderer, spawn, place, remove, slice, crack, explode, burst, resize, setPixelRatio, toScreen,
     live, halves,
     step(dt) { stepParticles(dt); stepHalves(dt); },

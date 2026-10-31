@@ -16,39 +16,92 @@ const clampName = s => (s || "").trim().replace(/\s+/g, " ").slice(0, 18);
 // ---------- 3D a plátno čepele ----------
 const scene = createScene($("gl"), { reduced });
 const blade = $("blade"), bctx = blade.getContext("2d");
+const deskMQ = matchMedia("(min-width: 960px) and (min-height: 560px)");
 function resize() {
   const w = innerWidth, h = innerHeight, pr = Math.min(devicePixelRatio || 1, 2);
+  document.documentElement.style.setProperty("--app-h", h + "px");   // iOS: dvh bývá o lištu vedle
   scene.resize(w, h);
   blade.width = Math.round(w * pr); blade.height = Math.round(h * pr);
   bctx.setTransform(pr, 0, 0, pr, 0, 0);
 }
 addEventListener("resize", resize);
+addEventListener("orientationchange", () => setTimeout(resize, 120));
+if (window.visualViewport) visualViewport.addEventListener("resize", resize);
 resize();
 
-// žárovky na šňůře a bedny: kreslí se v pixelech, aby se na širokém displeji nedeformovaly
+// žárovky na šňůře, markýza a bedny: kreslí se v pixelech, aby se na širokém displeji nedeformovaly
 function paintStage() {
-  const w = innerWidth, sag = Math.min(46, w * 0.09);
+  const w = innerWidth, desk = deskMQ.matches, sag = Math.min(46, w * 0.09);
   const wire = x => 8 + sag * Math.sin(Math.PI * x / w * 2) * (x < w / 2 ? 1 : 0.35);
   let s = `<path d="M0 ${wire(0)} ${Array.from({ length: 41 }, (_, i) => `L${i / 40 * w} ${wire(i / 40 * w)}`).join(" ")}" fill="none" stroke="#151515" stroke-width="1.6"/>`;
-  const n = Math.max(6, Math.round(w / 34));
+  const n = Math.max(6, Math.round(w / (desk ? 46 : 34)));
   for (let i = 0; i < n; i++) {
     const x = (i + 0.5) / n * w, y = wire(x) + 5;
     s += `<circle class="bulb-glow" style="animation-delay:${(i * 0.37) % 2}s" cx="${x}" cy="${y}" r="8" fill="#FFD27A" opacity=".28"/><circle cx="${x}" cy="${y}" r="3.4" fill="#FFE7A8"/>`;
   }
   const bl = $("bulbs"); bl.setAttribute("viewBox", `0 0 ${w} 60`); bl.innerHTML = s;
+  // markýza: pruhy pevné šířky (nejsou natažené), u okraje celý pruh nakonec
+  const sw = desk ? 64 : 36, nS = Math.ceil(w / sw), offS = (w - nS * sw) / 2;
+  let a = "";
+  for (let i = 0; i < nS; i++) {
+    const x = offS + i * sw;
+    a += `<path d="M${x} 0H${x + sw}V58Q${x + sw / 2} 80 ${x} 58Z" fill="${i % 2 ? "#F1E6D0" : "#C8372D"}"/>`;
+  }
+  a += `<path d="M0 52H${w}" stroke="#000" stroke-opacity=".18" stroke-width="3"/>`;
+  const aw = $("awning"); aw.setAttribute("viewBox", `0 0 ${w} 80`); aw.innerHTML = a;
+  // bedny: viewBox je v jednotkách původních 112 px, takže se celé měřítko drží i na desktopu (150 px)
+  const k = desk ? 150 / 112 : 1, vw = w / k;
   const labels = [["ŠVESTKY", "1. JAKOST · VALAŠSKO"], ["OVOCE", "Z TRHU NA NŮŽ"], ["MELOUNY", "KUS · NEVÁŽÍ SE"], ["HRUŠKY", "ZE ZAHRADY"], ["CITRONY", "KYSELÉ JAK ŘEMEN"], ["KIWI", "CHLUPATÉ"]];
-  const cw = 130, cols = Math.ceil(w / cw) + 1, off = (w - cols * cw) / 2;
-  let c = `<rect x="0" y="22" width="${w}" height="90" fill="#5E3A20"/>`;
+  const cw = 130, cols = Math.ceil(vw / cw) + 1, off = (vw - cols * cw) / 2;
+  let c = `<rect x="0" y="22" width="${vw}" height="90" fill="#5E3A20"/>`;
   for (let i = 0; i < cols; i++) {
     const x = off + i * cw + 4, y = i % 2 ? 26 : 30, [l1, l2] = labels[i % labels.length], f = i % 2 ? "#A86B3B" : "#9A6236";
     c += `<rect x="${x}" y="${y}" width="${cw - 8}" height="${112 - y}" fill="${f}"/><rect x="${x}" y="${y}" width="${cw - 8}" height="8" fill="#B87B48"/><rect x="${x}" y="64" width="${cw - 8}" height="3" fill="#7A4A26"/>
       <g font-family="Bungee, sans-serif" fill="#2E1B0D" opacity=".75" text-anchor="middle"><text x="${x + cw / 2 - 4}" y="${y + 28}" font-size="13">${l1}</text><text x="${x + cw / 2 - 4}" y="90" font-size="9">${l2}</text></g>`;
   }
-  c += `<rect x="0" y="16" width="${w}" height="9" fill="#B87B48"/><rect x="0" y="23" width="${w}" height="3" fill="#3E2614"/>`;
-  const cr = $("crates"); cr.setAttribute("viewBox", `0 0 ${w} 112`); cr.setAttribute("preserveAspectRatio", "xMidYMax slice"); cr.innerHTML = c;
+  c += `<rect x="0" y="16" width="${vw}" height="9" fill="#B87B48"/><rect x="0" y="23" width="${vw}" height="3" fill="#3E2614"/>`;
+  const cr = $("crates"); cr.setAttribute("viewBox", `0 0 ${vw} 112`); cr.setAttribute("preserveAspectRatio", "none"); cr.innerHTML = c;
 }
 addEventListener("resize", paintStage);
 paintStage();
+
+// dotyk: žádný zoom, dvojklik ani gesta stránky při sekání (iOS Safari ignoruje user-scalable)
+for (const ev of ["gesturestart", "gesturechange", "gestureend"]) document.addEventListener(ev, e => e.preventDefault());
+document.addEventListener("dblclick", e => e.preventDefault());
+document.addEventListener("touchmove", e => { if (!e.target.closest("#panel")) e.preventDefault(); }, { passive: false });
+const buzz = p => { try { navigator.vibrate && navigator.vibrate(p); } catch {} };
+const fmtClock = sec => `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")}`;
+// délka kola ve větě: 60000 -> "minuta" / "1 minutu", 120000 -> "dvě minuty" / "2 minuty"
+const lenNom = ms => ms === 60000 ? "minuta" : ms === 120000 ? "dvě minuty" : ms % 60000 === 0 ? ms / 60000 + " minut" : Math.round(ms / 1000) + " sekund";
+const lenAcc = ms => ms === 60000 ? "1 minutu" : ms === 120000 ? "2 minuty" : ms % 60000 === 0 ? ms / 60000 + " minut" : Math.round(ms / 1000) + " s";
+const roundMs = () => (room && room.meta.g.rl) || Sim.ROUND_MS;
+
+// ---------- celá obrazovka: Fullscreen API, na iPhonu nápověda k ploše ----------
+const platform = (() => {
+  const ua = navigator.userAgent, iphone = /iPhone|iPod/.test(ua), ipad = /iPad/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  const root = document.documentElement, api = !!(root.requestFullscreen || root.webkitRequestFullscreen) && (document.fullscreenEnabled !== false);
+  return { ios: iphone || ipad, canFs: api && !iphone, standalone: !!navigator.standalone || matchMedia("(display-mode: standalone)").matches };
+})();
+(() => {
+  const btn = $("fs"), hint = $("iosHint");
+  const isFs = () => !!(document.fullscreenElement || document.webkitFullscreenElement);
+  const svg = on => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">${on ? '<path d="M9 4v4a1 1 0 0 1-1 1H4M15 4v4a1 1 0 0 0 1 1h4M9 20v-4a1 1 0 0 0-1-1H4M15 20v-4a1 1 0 0 1 1-1h4"/>' : '<path d="M4 9V5a1 1 0 0 1 1-1h4M20 9V5a1 1 0 0 0-1-1h-4M4 15v4a1 1 0 0 0 1 1h4M20 15v4a1 1 0 0 1-1 1h-4"/>'}</svg>`;
+  const paint = () => { btn.innerHTML = svg(isFs()); btn.setAttribute("aria-label", isFs() ? "Ukončit celou obrazovku" : "Celá obrazovka"); };
+  if (platform.canFs && !platform.standalone) {
+    btn.hidden = false; paint();
+    btn.addEventListener("click", async () => {
+      try {
+        if (isFs()) await (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+        else { const r = document.documentElement; await (r.requestFullscreen || r.webkitRequestFullscreen).call(r, { navigationUI: "hide" }); }
+      } catch { toast("Prohlížeč celou obrazovku nepustil."); }
+    });
+    for (const ev of ["fullscreenchange", "webkitfullscreenchange"]) document.addEventListener(ev, () => { paint(); resize(); });
+  }
+  if (platform.ios && !platform.canFs && !platform.standalone && Net.store.get("ovs-ioshint") !== "1") {
+    hint.hidden = false;
+    $("iosHintX").addEventListener("click", () => { hint.hidden = true; Net.store.set("ovs-ioshint", "1"); });
+  }
+})();
 
 // ---------- zvuk: syntetizovaný, zapne se po prvním dotyku ----------
 const sound = (() => {
@@ -105,7 +158,7 @@ let phase = "menu";
 let view = null;
 let K = 0;         // klíč právě hraného nebo posledního kola
 const game = {
-  sched: [], next: 0, live: [], score: 0, start: 0, end: 0, rl: Sim.ROUND_MS, ev: [], lastSend: -1e9,
+  sched: [], next: 0, live: [], score: 0, start: 0, end: 0, rl: Sim.ROUND_MS, doneAt: 0, waitHold: 0, ev: [], lastSend: -1e9,
   queue: [], lastApplied: -1e9, stroke: null, frozenLeft: 0, cuts: 0, bombs: 0, sent: 0, got: 0,
 };
 const stats = { frames: 0, time: 0, worst: [], samples: [] };
@@ -165,28 +218,38 @@ const ICONS = {
 // ---------- obrazovky v panelu ----------
 const panel = $("panel");
 function showView(name, html) {
+  const same = view === name;
   view = name;
   panel.hidden = !html;
-  panel.innerHTML = html ? `<section class="tag" data-view="${name}">${html}</section>` : "";
+  panel.innerHTML = html ? `<section class="tag${same ? " still" : ""}" data-view="${name}">${html}</section>` : "";
+  panel.scrollTop = 0;
   const first = panel.querySelector("[autofocus]");
   if (first && matchMedia("(pointer: fine)").matches) first.focus();
 }
-const howTo = `<p class="how">Táhni prstem přes ovoce, <b>bomby nesekej</b>. Tři a víc kusů jedním tahem nebo <b>karambola</b> (hvězda) pošle soupeři naschvál: šmouhu, mráz nebo bombu navíc. Kolo trvá minutu, hraje se na dvě vítězná.</p>`;
+const howTo = (ms, id = "") => `<p class="how"${id ? ` id="${id}"` : ""}>Táhni prstem nebo myší přes ovoce, <b>bomby nesekej</b>. Tři a víc kusů jedním tahem nebo <b>karambola</b> (hvězda) pošle soupeři naschvál: šmouhu, mráz nebo bombu navíc. Hraje se jedno kolo na ${lenAcc(ms)}, vyhrává vyšší skóre.</p>`;
 
 function viewSetup() {
   phase = "menu"; $("hud").hidden = true;
   const last = Net.store.get("ovs-name") || "";
   showView("setup", `
     <h1>Ovocný souboj</h1>
-    <p>Sekáte naráz, každý na svém mobilu, stejné ovoce ve stejném pořadí. Kdo víc nasekal, bere kolo.</p>
+    <p>Sekáte naráz, každý na svém displeji, stejné ovoce ve stejném pořadí. Kdo má na konci kola víc bodů, bere souboj.</p>
     <label for="fMe">Tvoje jméno</label><input id="fMe" type="text" maxlength="18" autocomplete="given-name" value="${esc(last)}" placeholder="třeba Mark" autofocus>
     <label for="fOpp">Koho vyzýváš</label><input id="fOpp" type="text" maxlength="18" placeholder="třeba Radka">
-    <label>O co hrajeme <span class="small">(nepovinné)</span></label>
-    <div class="chips" id="chips">${STAKES.map(s => `<button type="button" aria-pressed="false">${s}</button>`).join("")}</div>
+    <span class="lab" id="lenLab">Jak dlouhé kolo</span>
+    <div class="chips" id="lenChips" role="group" aria-labelledby="lenLab">${Sim.ROUND_OPTIONS.map(ms => `<button type="button" data-ms="${ms}" aria-pressed="${ms === Sim.ROUND_MS}">${ms / 60000} ${ms === 60000 ? "minuta" : "minuty"}</button>`).join("")}</div>
+    <span class="lab" id="stakeLab">O co hrajeme <span class="small">(nepovinné)</span></span>
+    <div class="chips" id="chips" role="group" aria-labelledby="stakeLab">${STAKES.map(s => `<button type="button" aria-pressed="false">${s}</button>`).join("")}</div>
     <input id="fStake" type="text" maxlength="40" placeholder="nebo napiš vlastní sázku" style="margin-top:8px">
     <button class="btn" id="bCreate">Připravit výzvu</button>
-    ${howTo}`);
-  const chips = $("chips"), stake = $("fStake");
+    ${howTo(Sim.ROUND_MS, "setupHow")}`);
+  const chips = $("chips"), stake = $("fStake"), lens = $("lenChips");
+  const pickedMs = () => +lens.querySelector("[aria-pressed=true]").dataset.ms;
+  lens.addEventListener("click", e => {
+    const b = e.target.closest("button"); if (!b) return;
+    lens.querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
+    $("setupHow").outerHTML = howTo(+b.dataset.ms, "setupHow");
+  });
   chips.addEventListener("click", e => {
     const b = e.target.closest("button"); if (!b) return;
     const was = b.getAttribute("aria-pressed") === "true";
@@ -199,7 +262,7 @@ function viewSetup() {
     if (!a) { $("fMe").focus(); toast("Napiš svoje jméno, ať soupeř ví, kdo ho vyzývá."); return; }
     Net.store.set("ovs-name", a);
     $("bCreate").disabled = true; $("bCreate").textContent = "Chystám stánek…";
-    try { await createRoom(a, b || "", stake.value.trim().slice(0, 40)); }
+    try { await createRoom(a, b || "", stake.value.trim().slice(0, 40), pickedMs()); }
     catch { $("bCreate").disabled = false; $("bCreate").textContent = "Připravit výzvu"; toast("Spojení nevyšlo, zkus to znovu."); }
   });
 }
@@ -207,7 +270,7 @@ function viewSetup() {
 const linkFor = () => BASE + "#r." + room.id;
 function message() {
   const g = room.meta.g;
-  return `${g.a} tě vyzývá na Ovocný souboj 🍉 Sekáme ovoce naráz, každý na svém mobilu, nejlepší ze tří kol.${g.st ? " Hrajeme o: " + g.st + "." : ""} Přijmi tady: ${linkFor()}`;
+  return `${g.a} tě vyzývá na Ovocný souboj 🍉 Sekáme ovoce naráz, každý na svém mobilu, jedno kolo na ${lenAcc(g.rl)}.${g.st ? " Hrajeme o: " + g.st + "." : ""} Přijmi tady: ${linkFor()}`;
 }
 function viewShare() {
   phase = "menu"; $("hud").hidden = true;
@@ -234,11 +297,11 @@ function viewIntro() {
   const g = room.meta.g;
   showView("intro", `
     <h1>${esc(g.a)} tě vyzývá</h1>
-    <p class="chalk">na Ovocný souboj: minuta sekání, stejné ovoce pro oba, nejlepší ze tří kol.</p>
+    <p class="chalk">na Ovocný souboj: ${lenNom(g.rl)} sekání, stejné ovoce pro oba, vyhrává vyšší skóre.</p>
     ${g.st ? `<div class="stake">Hrajeme o: ${esc(g.st)}</div>` : ""}
     <label for="fName">Tvoje jméno</label><input id="fName" type="text" maxlength="18" value="${esc(g.b || Net.store.get("ovs-name") || "")}" placeholder="jak ti říkat" autofocus>
     <button class="btn" id="bAccept">Přijmout výzvu</button>
-    ${howTo}`);
+    ${howTo(g.rl)}`);
   $("bAccept").addEventListener("click", accept);
 }
 function viewWatch() {
@@ -254,16 +317,19 @@ function viewWatch() {
   $("bAsO").addEventListener("click", () => takeSeat("o"));
   $("bNew").addEventListener("click", () => { history.replaceState(null, "", location.pathname + location.search); room = null; viewSetup(); });
 }
-function viewError(t) {
+function viewError(t, text, retry) {
   phase = "menu"; $("hud").hidden = true;
-  showView("error", `<h2>${esc(t)}</h2><p>Odkaz může být neúplný. Zkus ho otevřít znovu, nebo založ nový souboj.</p><button class="btn" id="bNew">Založit souboj</button>`);
-  $("bNew").addEventListener("click", () => { history.replaceState(null, "", location.pathname + location.search); room = null; viewSetup(); });
+  showView("error", `<h2>${esc(t)}</h2><p>${esc(text || "Odkaz může být neúplný nebo smazaný. Zkus ho otevřít znovu, nebo založ nový souboj.")}</p>
+    ${retry ? `<button class="btn" id="bRetry">Zkusit znovu</button><button class="btn alt" id="bNew">Založit nový souboj</button>` : `<button class="btn" id="bNew">Založit nový souboj</button>`}`);
+  $("bRetry")?.addEventListener("click", () => { clearTimeout(openFromHash.t); openFromHash(); });
+  $("bNew").addEventListener("click", () => { clearTimeout(openFromHash.t); history.replaceState(null, "", location.pathname + location.search); room = null; viewSetup(); });
 }
 
 // ---------- místnost ----------
-async function createRoom(a, b, st) {
+async function createRoom(a, b, st, picked) {
   const id = Net.randId(10);
-  const rl = Math.max(10, Math.min(60, +(params.get("kolo") || 60))) * 1000;
+  // ?kolo=N (sekundy, 10–120) je testovací přepis a má přednost před volbou na setup obrazovce
+  const rl = params.get("kolo") ? Math.max(10, Math.min(120, +params.get("kolo") || 120)) * 1000 : (Sim.ROUND_OPTIONS.includes(picked) ? picked : Sim.ROUND_MS);
   const meta = { app: "ovocny-souboj", v: 1, sx: Net.device, so: "", g: { a, b, st, rl, go: 0, sd: 0 } };
   await Net.save(Net.metaUrl(id), meta);
   await Net.save(Net.seatUrl(id, "x"), seatDoc());
@@ -277,10 +343,10 @@ const seatDoc = () => ({ k: 0, rdy: 0, sc: 0, ev: [], h: {}, t: Date.now() });
 async function openFromHash() {
   const m = /^#r\.([0-9a-z]{6,16})$/.exec(location.hash || "");
   if (!m) { viewSetup(); return; }
-  showView("loading", `<h2>Otevírám stánek…</h2>`);
+  if (view !== "error") showView("loading", `<h2>Otevírám stánek…</h2>`);
   let meta;
   try { meta = await Net.load(Net.metaUrl(m[1])); }
-  catch { viewError("Spojení nevyšlo."); setTimeout(openFromHash, 4000); return; }
+  catch { viewError("Spojení nevyšlo.", "Nedaří se dovolat ke stánku. Zkontroluj signál, zkouším to sám znovu.", true); clearTimeout(openFromHash.t); openFromHash.t = setTimeout(openFromHash, 4000); return; }
   if (!meta || meta.app !== "ovocny-souboj") { viewError("Tenhle souboj neexistuje."); return; }
   await enterRoom(m[1], meta);
   if (!room.seat) { if (!meta.so) viewIntro(); else viewWatch(); return; }
@@ -430,11 +496,12 @@ function hudOppState() {
   $("stateOpp").textContent = s;
   $("stateMe").textContent = d && d.rdy > go ? "připraveno" : "";
 }
-function hudDots(hx, ho, m) {
-  const st = Sim.matchState(hx, ho, m), me = room.seat;
-  const marks = st.rounds.map(r => r.w === null ? "tie" : r.w === me ? "me" : "opp");
-  while (marks.length < 3) marks.push("");
-  $("dots").innerHTML = marks.map(c => `<i class="${c}"></i>`).join("");
+// hodiny v HUD: číslo souboje a série přes odvety (já : soupeř); před první odvetou jen „jedno kolo“
+function hudSeries(hx, ho, m) {
+  const st = Sim.matchState(hx, ho, m), ser = Sim.series(hx, ho);
+  const mine = room.seat === "x" ? ser : [ser[1], ser[0]];
+  $("roundLabel").textContent = `Souboj č. ${m}`;
+  $("ser").innerHTML = m > 1 || mine[0] + mine[1] > 0 ? `série <b class="m">${mine[0]}</b> : <b class="o">${mine[1]}</b>` : `jedno kolo`;
   return st;
 }
 function hists() {
@@ -445,8 +512,8 @@ function hists() {
 function viewLobby() {
   phase = "lobby"; $("hud").hidden = false; hudNames();
   const g = room.meta.g, d = mine(), next = 11;
-  K = 0; $("timer").textContent = Math.round(g.rl / 1000); $("timer").classList.remove("low"); $("roundLabel").textContent = "1. kolo";
-  cells($("cellsMe"), 0); cells($("cellsOpp"), 0); hudDots({}, {}, 1); hudOppState();
+  K = 0; $("timer").textContent = fmtClock(Math.round(g.rl / 1000)); $("timer").classList.remove("low");
+  cells($("cellsMe"), 0); cells($("cellsOpp"), 0); { const [hx, ho] = hists(); hudSeries(hx, ho, Sim.mOf(next)); } hudOppState();
   const joined = !!room.meta.so, rdy = d.rdy >= next;
   const sig = `lobby|${joined}|${rdy}`;
   if (view === "lobby" && panel.dataset.sig === sig) return;
@@ -455,50 +522,64 @@ function viewLobby() {
     ${g.st ? `<div class="stake">Hrajeme o: ${esc(g.st)}</div>` : ""}
     <p style="margin-top:12px">${joined ? (rdy ? `Jakmile bude ${esc(oppName())} taky připraven(a), naskočí odpočet.` : "Až klepneš, počkáme na soupeře a pak odpočet 3, 2, 1.") : "Odkaz už máš poslaný? Hra se rozjede sama, jakmile výzvu přijme."}</p>
     ${joined ? `<button class="btn" id="bReady" ${rdy ? "disabled" : ""}>${rdy ? "Čekám na soupeře…" : "Jdu do toho"}</button>` : `<button class="btn alt" id="bBack">Znovu poslat odkaz</button>`}
-    ${howTo}`);
+    ${howTo(g.rl)}`);
   panel.dataset.sig = sig;
   $("bReady")?.addEventListener("click", () => ready(next));
   $("bBack")?.addEventListener("click", viewShare);
 }
+// soupeř 20 s po konci mého kola pořád nedohrál: srozumitelný stav s volbou počkat / poslat odkaz a vrátit se později
+const STALL_MS = 20000;
 function viewWaiting() {
   $("hud").hidden = false; hudNames(); hudOppState();
-  if (view === "waiting") return;
-  showView("waiting", `<h2>Hotovo! Čekám na ${esc(oppName())}…</h2><p>Soupeř ještě dosekává. Výsledek naskočí sám.</p>`);
+  if (!game.doneAt) game.doneAt = Date.now();
+  const stalled = Date.now() - Math.max(game.doneAt, game.waitHold) > STALL_MS;
+  const sig = "waiting|" + stalled;
+  if (view === "waiting" && panel.dataset.sig === sig) return;
+  const n = esc(oppName());
+  if (!stalled) showView("waiting", `<h2>Hotovo! Čekám na ${n}…</h2><p>Soupeř ještě dosekává. Výsledek naskočí sám.</p>`);
+  else {
+    showView("waiting", `<h2>${n} se pořád neozývá</h2>
+      <p>Možná ztratil(a) signál, zamkl(a) telefon nebo zavřel(a) stránku. Tvoje skóre je uložené, výsledek naskočí, jakmile ${n} dohraje.</p>
+      <button class="btn" id="bHold">Počkat dál</button>
+      <button class="btn alt" id="bLink">Poslat odkaz a vrátit se později</button>`);
+    $("bHold").addEventListener("click", () => { game.waitHold = Date.now(); viewWaiting(); });
+    $("bLink").addEventListener("click", async () => {
+      const t = `${room.meta.g.a} a ${room.meta.g.b}, tady je náš Ovocný souboj, výsledek tam čeká: ${linkFor()}`;
+      try { if (navigator.share) await navigator.share({ text: t }); else { await navigator.clipboard.writeText(t); toast("Odkaz zkopírován, vlož ho do chatu."); } } catch {}
+    });
+  }
+  panel.dataset.sig = sig;
 }
 function viewResult(hx, ho) {
   phase = "result"; $("hud").hidden = false; hudNames();
-  const go = room.meta.g.go, m = Sim.mOf(go), st = hudDots(hx, ho, m), me = room.seat, d = mine();
-  const r = st.rounds.find(x => x.k === go) || { x: hx[go], o: ho[go], w: null, r: Sim.rOf(go) };
+  const go = room.meta.g.go, m = Sim.mOf(go), st = hudSeries(hx, ho, m), me = room.seat, d = mine();
+  const r = st.rounds[0] || { x: hx[go], o: ho[go], w: null };
   cells($("cellsMe"), me === "x" ? r.x : r.o); cells($("cellsOpp"), me === "x" ? r.o : r.x);
-  $("timer").textContent = "0";
+  $("timer").textContent = "0:00"; $("timer").classList.remove("low");
   const nextK = st.nextK, rdy = d.rdy >= nextK, g = room.meta.g;
   $("stateMe").textContent = rdy ? "připraveno" : "";
   $("stateOpp").textContent = room.opp && room.opp.rdy >= nextK ? "připraveno" : "";
-  const sig = `${go}|${rdy}|${st.over}|${room.opp && room.opp.rdy}`;
+  const sig = `${go}|${rdy}|${room.opp && room.opp.rdy}`;
   if (view === "result" && panel.dataset.sig === sig) return;
   const wName = w => esc(nameOfSeat(w));
-  const rows = st.rounds.map(x => `<tr><td>${x.r}. kolo</td><td class="${x.w === "x" ? "w" : ""}">${x.x}</td><td class="${x.w === "o" ? "w" : ""}">${x.o}</td></tr>`).join("");
+  const hi = Math.max(r.x, r.o), lo = Math.min(r.x, r.o);
   const ser = Sim.series(hx, ho);
-  let head, extra = "";
-  if (st.over) {
-    head = st.winner ? `Souboj bere ${wName(st.winner)} ${Math.max(st.wx, st.wo)} : ${Math.min(st.wx, st.wo)}` : "Souboj končí remízou";
-    if (g.st) extra = `<div class="stake">${st.winner ? `${wName(other(st.winner))} platí: ${esc(g.st)}` : `Sázka (${esc(g.st)}) zůstává ve hře`}</div>`;
-    extra += `<p class="small" style="margin-top:10px">Série soubojů: ${esc(g.a)} ${ser[0]} : ${ser[1]} ${esc(g.b)}</p>`;
-  } else {
-    head = r.w ? `${r.r}. kolo bere ${wName(r.w)}` : `${r.r}. kolo je nerozhodně`;
-  }
+  const head = st.winner ? `Souboj bere ${wName(st.winner)} ${hi} : ${lo}` : `Souboj končí remízou ${hi} : ${lo}`;
+  const side = (seat, name, score) => `<div class="p ${seat}${st.winner === seat ? " win" : ""}"><div class="n">${esc(name)}</div><div class="s">${score}</div><div class="st">${st.winner ? (st.winner === seat ? "bere souboj" : "chce odvetu") : "remíza"}</div></div>`;
+  let extra = "";
+  if (g.st) extra = `<div class="stake">${st.winner ? `${wName(other(st.winner))} platí: ${esc(g.st)}` : `Sázka (${esc(g.st)}) zůstává ve hře`}</div>`;
+  extra += `<p class="small" style="margin-top:10px">Série soubojů: ${esc(g.a)} ${ser[0]} : ${ser[1]} ${esc(g.b)}</p>`;
   const oppRdy = room.opp && room.opp.rdy >= nextK;
-  const label = st.over ? (rdy ? "Čekám na soupeře…" : "Odveta") : (rdy ? "Čekám na soupeře…" : `Další kolo`);
   showView("result", `
     <h2>${head}</h2>
-    <table class="rounds"><tr><td></td><td><b>${esc(g.a)}</b></td><td><b>${esc(g.b)}</b></td></tr>${rows}</table>
+    <div class="vs">${side("x", g.a, r.x)}<div class="mid">:</div>${side("o", g.b, r.o)}</div>
     ${extra}
-    <button class="btn" id="bNext" ${rdy ? "disabled" : ""}>${label}</button>
-    <p class="small" style="margin:8px 0 0;text-align:center">${oppRdy ? `${esc(oppName())} už čeká na tebe.` : rdy ? "Odpočet naskočí, až klepne i soupeř." : ""}</p>
-    ${st.over ? `<button class="btn alt" id="bShareRes">Poslat výsledek do chatu</button>` : ""}`);
+    <button class="btn" id="bNext" ${rdy ? "disabled" : ""}>${rdy ? "Čekám na soupeře…" : "Odveta"}</button>
+    <p class="small" style="margin:8px 0 0;text-align:center">${oppRdy ? `${esc(oppName())} už čeká na tebe.` : rdy ? "Odpočet naskočí, až klepne i soupeř. Nechce se mu? Pošli odkaz a vraťte se později." : ""}</p>
+    <button class="btn alt" id="bShareRes">Poslat výsledek do chatu</button>`);
   panel.dataset.sig = sig;
   $("bNext").addEventListener("click", () => ready(nextK));
-  $("bShareRes")?.addEventListener("click", async () => {
+  $("bShareRes").addEventListener("click", async () => {
     const t = `${head}${g.st && st.winner ? ` (${nameOfSeat(other(st.winner))} platí: ${g.st})` : ""}. Série ${g.a} ${ser[0]} : ${ser[1]} ${g.b}. Odveta? ${linkFor()}`;
     try { if (navigator.share) await navigator.share({ text: t }); else { await navigator.clipboard.writeText(t); toast("Zkopírováno."); } } catch {}
   });
@@ -511,7 +592,7 @@ function beginCountdown(k, seed, rl, delay) {
   game.rl = rl || Sim.ROUND_MS;
   game.sched = Sim.schedule(seed, game.rl).map(it => ({ ...it }));
   game.next = 0; game.score = 0; game.ev = []; game.queue = []; game.lastSend = -1e9; game.lastApplied = -1e9;
-  game.stroke = null; game.cuts = 0; game.bombs = 0; game.sent = 0; game.got = 0;
+  game.stroke = null; game.cuts = 0; game.bombs = 0; game.sent = 0; game.got = 0; game.doneAt = 0; game.waitHold = 0;
   for (const o of game.live) scene.remove(o); game.live = [];
   scene.clear();
   room.seenK = k; room.seenEv = (room.opp && room.opp.k === k) ? (room.opp.ev || []).length : 0;
@@ -520,9 +601,8 @@ function beginCountdown(k, seed, rl, delay) {
   $("hud").hidden = false; hudNames();
   $("stateMe").textContent = ""; $("stateOpp").textContent = "";
   cells($("cellsMe"), 0); cells($("cellsOpp"), 0);
-  const [hx, ho] = hists(); hudDots(hx, ho, Sim.mOf(k));
-  $("roundLabel").textContent = `${Sim.rOf(k)}. kolo`;
-  $("timer").textContent = Math.round(game.rl / 1000); $("timer").classList.remove("low");
+  const [hx, ho] = hists(); hudSeries(hx, ho, Sim.mOf(k));
+  $("timer").textContent = fmtClock(Math.round(game.rl / 1000)); $("timer").classList.remove("low");
   const now = performance.now();
   game.start = now + delay + 3000;
   game.countShown = -1;
@@ -534,7 +614,8 @@ function finishRound() {
   phase = "wait";
   const d = mine();
   room.w.set({ sc: game.score, h: { ...d.h, [K]: game.score } }, true);
-  sound.end();
+  sound.end(); buzz([70, 50, 140]);
+  game.doneAt = Date.now();
   for (const o of game.live) scene.remove(o); game.live = [];
   $("count").innerHTML = `<span class="go">Konec!</span>`;
   setTimeout(() => { if (phase !== "count") $("count").innerHTML = ""; }, 900);
@@ -568,7 +649,7 @@ function applySabotage(type) {
   $("banner").classList.add("on");
   clearTimeout(applySabotage.t); applySabotage.t = setTimeout(() => $("banner").classList.remove("on"), 2300);
   const sign = $("signOpp"); sign.classList.remove("hit"); void sign.offsetWidth; sign.classList.add("hit");
-  sound.incoming();
+  sound.incoming(); buzz([40, 40, 40]);
   if (type === "bomba") {
     const u = (Math.random() * 2 - 1) * 0.6;
     game.sched.push({ id: 1000 + game.got, t: clock + 750, kind: "bomba", u, vu: -u * 0.4, apex: 3 + Math.random() * 4, spin: [0, 0, 1, 2], band: c, from: who });
@@ -635,7 +716,7 @@ function hit(o, p, dx, dy, now, speed) {
     sound.boom();
     $("flash").classList.remove("on"); void $("flash").offsetWidth; $("flash").classList.add("on");
     if (!reduced) { document.body.classList.remove("shake"); void document.body.offsetWidth; document.body.classList.add("shake"); }
-    try { navigator.vibrate && navigator.vibrate(60); } catch {}
+    buzz(70);
     endStroke();
     return;
   }
@@ -660,7 +741,7 @@ function endStroke() {
     const type = Sim.sabotageFor(s.n, null);
     const sent = sendSabotage(type, s.x, s.y);
     float(s.x, s.y - 40, `Combo ${s.n}! +${bonus}<small>${sent ? (type === "mraz" ? "mráz" : "šmouha") + ` letí k ${esc(oppName())}` : "naschvál se ještě nabíjí"}</small>`);
-    sound.combo(s.n);
+    sound.combo(s.n); buzz(25);
     window.__ovs.log.push({ ev: "combo", n: s.n, sent: sent ? type : null, at: Date.now() });
   }
 }
@@ -716,7 +797,7 @@ function spawnItem(it, t0) {
   return o;
 }
 function moveAll(clockMs) {
-  const hw = scene.halfW;
+  const hw = scene.fieldHalf;
   for (const o of [...game.live]) {
     const dt = (clockMs - o.t0) / 1000;
     const p = Sim.posAt(o.it, dt);
@@ -725,8 +806,11 @@ function moveAll(clockMs) {
     scene.place(o, p.x, p.y, dt);
   }
 }
+let wasPlaying = false;
 function frame(now) {
   requestAnimationFrame(frame);
+  const pl = phase === "play" || phase === "count";
+  if (pl !== wasPlaying) { wasPlaying = pl; document.body.classList.toggle("playing", pl); }
   const dt = Math.min(0.05, (now - lastT) / 1000);
   lastT = now;
   if (phase === "count") {
@@ -748,7 +832,8 @@ function frame(now) {
     if (game.stroke && now - game.stroke.last > 380) endStroke();
     if (game.queue.length && now - game.lastApplied > 2600) applySabotage(game.queue.shift());
     const left = Math.max(0, Math.ceil((game.rl - clock) / 1000));
-    if ($("timer").textContent !== String(left)) { $("timer").textContent = left; $("timer").classList.toggle("low", left <= 10); }
+    const lt = fmtClock(left);
+    if ($("timer").textContent !== lt) { $("timer").textContent = lt; $("timer").classList.toggle("low", left <= 10); }
     stats.frames++; stats.time += dt; stats.samples.push(dt);
     if (stats.samples.length > 600) stats.samples.shift();
     qualityT += dt;
@@ -764,7 +849,8 @@ function frame(now) {
     if (now > idleNext && game.live.length < 3 && !document.hidden) {
       idleNext = now + 1400 + idleRng() * 900;
       const kinds = [...Sim.FRUITS, "karambola"];
-      const u = (idleRng() * 2 - 1) * 0.7;
+      // na desktopu visí nabídka vlevo, ovoce létá hlavně vpravo od ní
+      const u = deskMQ.matches ? -0.1 + idleRng() * 0.85 : (idleRng() * 2 - 1) * 0.7;
       spawnItem({ kind: kinds[Math.floor(idleRng() * kinds.length)], u, vu: -u * 0.5, apex: 1 + idleRng() * 5, spin: [idleRng(), idleRng(), idleRng(), 2] }, clock);
     }
     moveAll(clock);
@@ -786,7 +872,7 @@ function fpsStats() {
 // ---------- háčky pro testy (Playwright čte stav a polohy ovoce) ----------
 window.__ovs = {
   log: [],
-  state: () => ({ phase, view, K, score: game.score, opp: room && room.opp ? room.opp.sc : null, seat: room && room.seat, go: room && room.meta.g.go, sent: game.sent, got: game.got, bombs: game.bombs, cuts: game.cuts, queue: game.queue.length, live: game.live.length }),
+  state: () => ({ phase, view, K, score: game.score, opp: room && room.opp ? room.opp.sc : null, seat: room && room.seat, go: room && room.meta.g.go, rl: room && room.meta.g.rl, sent: game.sent, got: game.got, bombs: game.bombs, cuts: game.cuts, queue: game.queue.length, live: game.live.length }),
   targets: () => game.live.filter(o => !o.dead).map(o => ({ kind: o.kind, ice: !!o.ice, ...scene.toScreen(o.g.position.x, o.g.position.y), r: o.r / scene.HALF_H * scene.h / 2 })),
   fps: fpsStats,
   drawCalls: () => scene.renderer.info.render.calls,

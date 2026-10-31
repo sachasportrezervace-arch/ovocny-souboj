@@ -4,14 +4,17 @@ import * as S from "../src/sim.js";
 let n = 0; const t = (name, fn) => { fn(); n++; console.log("ok", name); };
 t("stejné semínko = stejný rozpis", () => assert.deepEqual(S.schedule(42), S.schedule(42)));
 t("jiné semínko = jiný rozpis", () => assert.notDeepEqual(S.schedule(1), S.schedule(2)));
-t("rozpis má rozumnou hustotu a karamboly", () => {
-  for (const sd of [1, 7, 99, 12345]) {
-    const s = S.schedule(sd);
-    const f = s.filter(i => S.FRUITS.includes(i.kind)).length, b = s.filter(i => i.kind === "bomba").length, k = s.filter(i => i.kind === "karambola").length;
-    assert.ok(f >= 60 && f <= 140, "ovoce " + f); assert.ok(b >= 3 && b <= 25, "bomby " + b); assert.equal(k, 4);
-    assert.ok(s.every(i => i.t >= 0 && i.t < S.ROUND_MS - 1500));
+t("rozpis má rozumnou hustotu a karamboly pro 60 i 120 s", () => {
+  for (const ms of [60000, 120000]) for (const sd of [1, 7, 99, 12345]) {
+    const s = S.schedule(sd, ms), k0 = ms / 60000;
+    const f = s.filter(i => S.FRUITS.includes(i.kind)).length, b = s.filter(i => i.kind === "bomba").length, k = s.filter(i => i.kind === "karambola");
+    assert.ok(f >= 60 * k0 && f <= 140 * k0, `ovoce ${f} (${ms})`); assert.ok(b >= 3 * k0 && b <= 25 * k0, `bomby ${b} (${ms})`);
+    assert.equal(k.length, Math.round(ms / 12000));
+    assert.ok(k.every((x, i) => i === 0 || x.t - k[i - 1].t > 6000), "karamboly nejsou nalepené");
+    assert.ok(s.every(i => i.t >= 0 && i.t < ms - 1500));
     assert.ok(s.filter(i => i.t < 7000).every(i => i.kind !== "bomba"), "první sekundy bez bomb");
   }
+  const s = S.schedule(3, 15000); assert.equal(s.filter(i => i.kind === "karambola").length, 1);
 });
 t("ovoce vyletí do zorného pole a spadne", () => {
   for (const it of S.schedule(5)) {
@@ -25,17 +28,15 @@ t("sabotáže", () => {
   assert.equal(S.sabotageFor(2, "jablko"), null); assert.equal(S.sabotageFor(3), "smouha");
   assert.equal(S.sabotageFor(5), "mraz"); assert.equal(S.sabotageFor(1, "karambola"), "bomba");
 });
-t("nejlepší ze 3 a remízová kola", () => {
-  let m = S.matchState({ 11: 30, 12: 20 }, { 11: 25, 12: 28 }, 1);
-  assert.equal(m.over, false); assert.equal(m.nextK, 13);
-  m = S.matchState({ 11: 30, 12: 20, 13: 40 }, { 11: 25, 12: 28, 13: 39 }, 1);
-  assert.equal(m.over, true); assert.equal(m.winner, "x"); assert.equal(m.nextK, 21);
-  m = S.matchState({ 11: 10, 12: 10 }, { 11: 9, 12: 11 }, 1); assert.equal(m.nextK, 13);
-  m = S.matchState({ 11: 5, 12: 5, 13: 5 }, { 11: 5, 12: 6, 13: 7 }, 1); assert.equal(m.winner, "o"); assert.equal(m.rounds.length, 3);
-  m = S.matchState({ 11: 1 }, {}, 1); assert.equal(m.rounds.length, 0); assert.equal(m.nextK, 11);
+t("jedno kolo: vyšší skóre vyhrává, stejné = remíza", () => {
+  let m = S.matchState({ 11: 52 }, { 11: 47 }, 1);
+  assert.equal(m.over, true); assert.equal(m.winner, "x"); assert.equal(m.nextK, 21); assert.equal(m.rounds.length, 1);
+  m = S.matchState({ 21: 5 }, { 21: 9 }, 2); assert.equal(m.winner, "o"); assert.equal(m.nextK, 31);
+  m = S.matchState({ 11: 8 }, { 11: 8 }, 1); assert.equal(m.over, true); assert.equal(m.winner, null); assert.equal(m.nextK, 21);
+  m = S.matchState({ 11: 1 }, {}, 1); assert.equal(m.over, false); assert.equal(m.rounds.length, 0); assert.equal(m.nextK, 11);
 });
 t("série přes odvety", () => {
-  const hx = { 11: 9, 12: 9, 21: 1, 22: 1 }, ho = { 11: 1, 12: 1, 21: 9, 22: 9, 23: 9 };
+  const hx = { 11: 9, 21: 1, 31: 5 }, ho = { 11: 1, 21: 9, 31: 5, 41: 3 };
   assert.deepEqual(S.series(hx, ho), [1, 1]);
 });
 console.log(n + "/7 PASS");

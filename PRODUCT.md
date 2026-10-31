@@ -4,7 +4,7 @@
 
 ## Co to je
 Prohlížečová hra pro dva na jednom odkazu, bez účtů. Oba hráči sekají ovoce tažením prstu ve stejné
-semínkem dané sekvenci, 60 s na kolo, nejlepší ze 3 kol. Twist: combo (3+ kusy jedním tahem) nebo
+semínkem dané sekvenci, jedno kolo (1 nebo 2 minuty podle volby zakladatele), vyšší skóre vyhrává, pak odveta a série soubojů. Twist: combo (3+ kusy jedním tahem) nebo
 speciální ovoce pošle soupeři sabotáž (bomba navíc, šťávová šmouha, zamrzlé ovoce na dvě seknutí).
 
 ## Kdo a kde

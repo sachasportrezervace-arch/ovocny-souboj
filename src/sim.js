@@ -1,7 +1,8 @@
 // Ovocný souboj – čistá herní logika bez DOM a three.js (testuje se v Node: node tests/sim.test.mjs).
 // Oba hráči dostanou ze stejného semínka stejný rozpis ovoce; sabotáže do něj přidávají až za běhu.
 
-export const ROUND_MS = 60000;
+export const ROUND_MS = 120000;   // výchozí délka jediného kola
+export const ROUND_OPTIONS = [60000, 120000];
 export const G = 15;          // gravitace v logických jednotkách (půlka výšky obrazovky = 10)
 export const Y0 = -12;        // ovoce startuje pod spodním okrajem
 export const FRUITS = ["meloun", "pomeranc", "svestka", "citron", "jablko", "kiwi"];
@@ -41,9 +42,9 @@ export function schedule(seed, roundMs = ROUND_MS) {
     const n = Math.hypot(...ax) || 1;
     out.push({ id: out.length, t: Math.round(t), kind, u, vu, apex, spin: [ax[0] / n, ax[1] / n, ax[2] / n, 1.5 + r() * 3] });
   };
-  // karamboly (posílají bombu navíc) jsou rozložené rovnoměrně, aby měl každý stejnou šanci
-  const stars = [];
-  for (let s = 0.17; s < 0.9; s += 0.2) stars.push(Math.round(roundMs * (s + (r() - 0.5) * 0.06)));
+  // karamboly (posílají bombu navíc) jsou rozložené rovnoměrně, cca po 12 s, aby měl každý stejnou šanci
+  const stars = [], nStars = Math.max(1, Math.round(roundMs / 12000));
+  for (let i = 0; i < nStars; i++) stars.push(Math.round(roundMs * (0.1 + 0.8 * (i + 0.5 + (r() - 0.5) * 0.3) / nStars)));
   let t = 900;
   const end = roundMs - 2600;
   while (t < end) {
@@ -53,7 +54,7 @@ export function schedule(seed, roundMs = ROUND_MS) {
     const stagger = r() < 0.45;
     let bombs = 0;
     for (let i = 0; i < size; i++) {
-      const bombP = p < 0.12 ? 0 : 0.07 + 0.13 * p;
+      const bombP = t < 7000 ? 0 : 0.07 + 0.13 * p;   // prvních 7 s bez bomb, pak roste s podílem času
       const kind = bombs === 0 && size > 1 && r() < bombP * 2.2 ? "bomba" : (size === 1 && r() < bombP ? "bomba" : pick(FRUITS));
       if (kind === "bomba") bombs++;
       item(t + (stagger ? i * 190 : i * 25), kind);
@@ -87,23 +88,17 @@ export const key = (m, r) => m * 10 + r;
 export const mOf = k => Math.floor(k / 10);
 export const rOf = k => k % 10;
 
-// stav zápasu m z historií skóre obou hráčů ({klíč: skóre})
+// stav souboje m z historií skóre obou hráčů ({klíč: skóre}): jedno kolo, vyšší skóre vyhrává, stejné = remíza
 export function matchState(hx, ho, m) {
-  const rounds = [];
-  let wx = 0, wo = 0;
-  for (let r = 1; r <= 5; r++) {
-    const k = key(m, r);
-    if (!(k in (hx || {})) || !(k in (ho || {}))) break;
+  const k = key(m, 1), rounds = [];
+  const over = k in (hx || {}) && k in (ho || {});
+  let winner = null;
+  if (over) {
     const x = hx[k], o = ho[k];
-    const w = x > o ? "x" : o > x ? "o" : null;
-    if (w === "x") wx++; else if (w === "o") wo++;
-    rounds.push({ r, k, x, o, w });
-    if (wx >= 2 || wo >= 2) break;
+    winner = x > o ? "x" : o > x ? "o" : null;
+    rounds.push({ r: 1, k, x, o, w: winner });
   }
-  const over = wx >= 2 || wo >= 2 || rounds.length >= 5;
-  const winner = !over ? null : wx > wo ? "x" : wo > wx ? "o" : null;
-  const last = rounds.length ? rounds[rounds.length - 1].r : 0;
-  return { rounds, wx, wo, over, winner, nextK: over ? key(m + 1, 1) : key(m, last + 1) };
+  return { rounds, wx: winner === "x" ? 1 : 0, wo: winner === "o" ? 1 : 0, over, winner, nextK: over ? key(m + 1, 1) : k };
 }
 
 export function series(hx, ho) {

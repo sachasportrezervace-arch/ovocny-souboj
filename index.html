@@ -2,13 +2,19 @@
 <html lang="cs">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, user-scalable=no">
 <title>Ovocný souboj</title>
 <meta name="description" content="Sekání ovoce pro dva naživo na jednom odkazu. Combo pošle soupeři naschvál.">
-<meta name="theme-color" content="#1B2D4F">
+<meta name="theme-color" content="#14223D">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Ovocný souboj">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta property="og:title" content="Ovocný souboj">
-<meta property="og:description" content="Vyzývám tě: sekáme ovoce naráz, každý na svém mobilu. Nejlepší ze tří kol.">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='34' r='24' fill='%232F7D3A'/%3E%3Cpath d='M10 34a22 22 0 0 0 44 0z' fill='%23E8414B'/%3E%3Cpath d='M10 34h44' stroke='%23E9F2C9' stroke-width='4'/%3E%3C/svg%3E">
+<meta property="og:description" content="Vyzývám tě: sekáme ovoce naráz, každý na svém mobilu. Jedno kolo, vyhrává vyšší skóre.">
+<link rel="icon" href="icons/icon-192.png" type="image/png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bungee&family=Caveat+Brush&family=Figtree:wght@400;600;800&display=swap&subset=latin-ext" rel="stylesheet">
@@ -26,42 +32,52 @@
   --chalkf: "Caveat Brush", "Comic Sans MS", cursive;
   --ui: "Figtree", system-ui, sans-serif;
   --safe-t: env(safe-area-inset-top, 0px); --safe-b: env(safe-area-inset-bottom, 0px);
+  --safe-l: env(safe-area-inset-left, 0px); --safe-r: env(safe-area-inset-right, 0px);
+  /* výška hrací plochy: dvh, na iOS ji main.js přepíše na innerHeight */
+  --app-h: 100vh; --awning-h: 78px; --crate-h: 112px;
+  --crate-top: calc(var(--crate-h) + var(--safe-b));
+  /* kurzor nad plochou: lněný kroužek s tmavým okrajem, aby byl vidět na soumraku i na bednách */
+  --cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='9' fill='none' stroke='%231B1A17' stroke-width='5'/%3E%3Ccircle cx='16' cy='16' r='9' fill='none' stroke='%23FFFCF2' stroke-width='2.2'/%3E%3Ccircle cx='16' cy='16' r='2' fill='%23FF9A4D'/%3E%3C/svg%3E") 16 16, crosshair;
   color-scheme: dark;
 }
+@supports (height: 100dvh) { :root { --app-h: 100dvh; } }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-html, body { margin: 0; height: 100%; overflow: hidden; background: var(--sky-top); color: var(--chalk); font-family: var(--ui); }
-body { overscroll-behavior: none; user-select: none; -webkit-user-select: none; }
+html, body { margin: 0; width: 100%; height: var(--app-h); overflow: hidden; overscroll-behavior: none; background: var(--sky-top); color: var(--chalk); font-family: var(--ui); }
+/* tělo je přibité, aby se při sekání nehýbala stránka (pull-to-refresh, gumový posun na iOS) */
+body { position: fixed; left: 0; top: 0; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; touch-action: manipulation; }
+input, textarea { user-select: text; -webkit-user-select: text; }
 ::selection { background: var(--px); color: var(--ink); }
 button, input { font: inherit; color: inherit; }
 :focus-visible { outline: 3px solid var(--bulb); outline-offset: 3px; }
 
 /* ---------- stánek: obloha, žárovky, markýza, bedny ---------- */
-#stage { position: fixed; inset: 0; overflow: hidden; pointer-events: none;
+#stage { position: fixed; left: 0; top: 0; width: 100%; height: var(--app-h); overflow: hidden; pointer-events: none;
   /* obloha za stánkem: soumrak, u obzoru teplá záře z trhu */
   background: linear-gradient(180deg, var(--sky-top) 0%, var(--sky-mid) 58%, #8C5A62 80%, var(--sky-glow) 100%); }
-#stage .hills { position: absolute; left: 0; right: 0; bottom: 96px; width: 100%; height: 34vh; }
-#stage .awning { position: absolute; top: 0; left: -2%; width: 104%; height: calc(78px + var(--safe-t)); }
-#stage .bulbs { position: absolute; top: calc(70px + var(--safe-t)); left: 0; width: 100%; height: 60px; }
-#stage .crates { position: absolute; left: 0; right: 0; bottom: 0; height: calc(112px + var(--safe-b)); }
+#stage .hills { position: absolute; left: 0; right: 0; bottom: calc(var(--crate-top) - 16px); width: 100%; height: 34%; }
+#stage .awning { position: absolute; top: 0; left: 0; width: 100%; height: calc(var(--awning-h) + var(--safe-t)); }
+#stage .bulbs { position: absolute; top: calc(var(--awning-h) - 8px + var(--safe-t)); left: 0; width: 100%; height: 60px; }
+#stage .crates { position: absolute; left: 0; width: 100%; bottom: var(--safe-b); height: var(--crate-h); }
+#stage .crates-fill { position: absolute; left: 0; right: 0; bottom: 0; height: var(--safe-b); background: var(--wood-dark); }
 .bulb-glow { animation: glow 3.2s ease-in-out infinite alternate; }
 @keyframes glow { to { opacity: .55; } }
 
-#gl, #blade { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
-#blade { touch-action: none; cursor: crosshair; }
-#smear { position: fixed; inset: 0; pointer-events: none; opacity: 0; }
+#gl, #blade { position: fixed; left: 0; top: 0; width: 100%; height: var(--app-h); display: block; }
+#blade { touch-action: none; cursor: var(--cursor); -webkit-user-select: none; }
+#smear { position: fixed; left: 0; top: 0; width: 100%; height: var(--app-h); pointer-events: none; opacity: 0; }
 #smear svg { width: 100%; height: 100%; display: block; }
 #smear.on { animation: smear 2.8s cubic-bezier(.2,.7,.3,1) forwards; }
 #smear.on .drip { animation: drip 2.8s ease-in forwards; }
 @keyframes smear { 0% { opacity: 0; transform: scale(.7); } 8% { opacity: .9; transform: scale(1); } 62% { opacity: .82; } 100% { opacity: 0; transform: translateY(3%); } }
 @keyframes drip { to { transform: translateY(16%); } }
-#flash { position: fixed; inset: 0; background: #FFF4D6; opacity: 0; pointer-events: none; }
+#flash { position: fixed; left: 0; top: 0; width: 100%; height: var(--app-h); background: #FFF4D6; opacity: 0; pointer-events: none; }
 #flash.on { animation: flash .5s ease-out; }
 @keyframes flash { 0% { opacity: .75; } 100% { opacity: 0; } }
 body.shake #gl { animation: shake .38s linear; }
 @keyframes shake { 20% { transform: translate(-7px, 3px); } 40% { transform: translate(6px, -4px); } 60% { transform: translate(-4px, 2px); } 80% { transform: translate(3px, -1px); } }
 
 /* ---------- HUD: křídové cedulky zavěšené pod markýzou ---------- */
-#hud { position: fixed; top: calc(var(--safe-t) + 52px); left: 0; right: 0; display: grid; grid-template-columns: 1fr auto 1fr; align-items: start; gap: 8px; padding: 0 12px; pointer-events: none; }
+#hud { position: fixed; top: calc(var(--safe-t) + var(--awning-h) - 26px); left: 0; right: 0; display: grid; grid-template-columns: 1fr auto 1fr; align-items: start; gap: 8px; padding: 0 calc(12px + var(--safe-r)) 0 calc(12px + var(--safe-l)); pointer-events: none; }
 #hud[hidden] { display: none; }
 .sign { position: relative; background: var(--board); border: 4px solid var(--board-edge); border-radius: 6px; padding: 6px 10px 6px; min-width: 0;
   box-shadow: 0 6px 14px rgba(0,0,0,.35); transform-origin: 50% -30px; }
@@ -82,25 +98,25 @@ body.shake #gl { animation: shake .38s linear; }
 .clock { background: var(--linen); color: var(--ink); border-radius: 4px; padding: 5px 10px 6px; text-align: center; box-shadow: 0 6px 14px rgba(0,0,0,.35); margin-top: 6px; }
 .clock .t { font-family: var(--disp); font-size: 26px; line-height: 1; font-variant-numeric: tabular-nums; }
 .clock .t.low { color: var(--awning); }
-.clock .r { font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-soft); margin-top: 2px; }
-.dots { display: flex; gap: 5px; justify-content: center; margin-top: 4px; }
-.dots i { width: 11px; height: 11px; border-radius: 50%; border: 2px solid var(--ink-soft); }
-.dots i.me { background: var(--me); border-color: var(--ink); } .dots i.opp { background: var(--opp); border-color: var(--ink); } .dots i.tie { background: var(--linen-shade); }
+.clock .r { font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-soft); margin-top: 2px; white-space: nowrap; }
+.clock .ser { font-family: var(--chalkf); font-size: 16px; line-height: 1; margin-top: 3px; color: var(--ink-soft); white-space: nowrap; }
+.clock .ser b { font-family: var(--disp); font-weight: 400; font-size: 15px; }
+.clock .ser .m { color: #D36A1E; } .clock .ser .o { color: #1E9C83; }
 
-#net { position: fixed; left: 50%; bottom: calc(var(--safe-b) + 122px); transform: translateX(-50%); font-size: 13px; font-weight: 600; background: rgba(20,34,61,.85); padding: 6px 12px; border-radius: 99px; pointer-events: none; }
+#net { position: fixed; left: 50%; bottom: calc(var(--crate-top) + 10px); transform: translateX(-50%); font-size: 13px; font-weight: 600; background: rgba(20,34,61,.85); padding: 6px 12px; border-radius: 99px; pointer-events: none; max-width: 92vw; text-align: center; }
 
 /* ---------- odpočet, naschvály, popisky ---------- */
-#count { position: fixed; inset: 0; display: grid; place-items: center; pointer-events: none; font-family: var(--disp); font-size: min(34vw, 190px); color: var(--linen); text-shadow: 0 8px 0 var(--awning-deep), 0 14px 30px rgba(0,0,0,.4); }
+#count { position: fixed; left: 0; top: 0; width: 100%; height: var(--app-h); display: grid; place-items: center; pointer-events: none; font-family: var(--disp); font-size: min(34vw, 190px); color: var(--linen); text-shadow: 0 8px 0 var(--awning-deep), 0 14px 30px rgba(0,0,0,.4); }
 #count span { animation: pop .9s cubic-bezier(.2,.9,.3,1) both; }
 #count .go { font-size: .5em; color: var(--bulb); }
 @keyframes pop { 0% { transform: scale(1.6); opacity: 0; } 25% { transform: scale(1); opacity: 1; } 80% { opacity: 1; } 100% { opacity: 0; transform: scale(.92); } }
-#banner { position: fixed; top: calc(var(--safe-t) + 160px); right: 10px; max-width: min(78vw, 340px); background: var(--linen); color: var(--ink); border-radius: 4px 4px 4px 4px; padding: 8px 12px 9px 14px;
-  box-shadow: 0 8px 18px rgba(0,0,0,.35); pointer-events: none; transform: translateX(120%); transition: transform .35s cubic-bezier(.2,.9,.3,1.1); display: flex; gap: 10px; align-items: center; }
+#banner { position: fixed; top: calc(var(--safe-t) + var(--awning-h) + 82px); right: calc(10px + var(--safe-r)); max-width: min(78vw, 340px); background: var(--linen); color: var(--ink); border-radius: 4px; padding: 8px 12px 9px 14px;
+  box-shadow: 0 8px 18px rgba(0,0,0,.35); pointer-events: none; transform: translateX(130%); transition: transform .35s cubic-bezier(.2,.9,.3,1.1); display: flex; gap: 10px; align-items: center; }
 #banner.on { transform: translateX(0); }
 #banner svg { flex: none; width: 34px; height: 34px; }
 #banner .txt { font-family: var(--chalkf); font-size: 21px; line-height: 1.05; }
 #banner .txt b { font-weight: 400; color: var(--awning-deep); }
-#floats { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
+#floats { position: fixed; left: 0; top: 0; width: 100%; height: var(--app-h); pointer-events: none; overflow: hidden; }
 .float { position: absolute; font-family: var(--disp); font-size: 22px; white-space: nowrap; transform: translate(-50%, -50%); text-shadow: 0 3px 0 rgba(0,0,0,.45); animation: rise 1.1s ease-out forwards; }
 .float small { display: block; font-family: var(--chalkf); font-size: 18px; text-align: center; }
 .float.bad { color: #FFB4A8; }
@@ -108,10 +124,15 @@ body.shake #gl { animation: shake .38s linear; }
 .shot { position: absolute; width: 16px; height: 16px; border-radius: 50%; background: var(--me); box-shadow: 0 0 0 3px rgba(0,0,0,.3); transition: transform .55s cubic-bezier(.5,0,.6,1), opacity .55s; }
 
 /* ---------- panel: papírová visačka na provázku ---------- */
-#panel { position: fixed; inset: 0; display: grid; place-items: center; padding: calc(var(--safe-t) + 96px) 16px calc(var(--safe-b) + 24px); overflow-y: auto; pointer-events: none; }
+/* panel se odscrolluje sám (overscroll contain), stránka pod ním stojí; tag má margin:auto = vystředěný, ale nikdy neuříznutý */
+#panel { position: fixed; left: 0; top: 0; width: 100%; height: var(--app-h); display: flex;
+  padding: calc(var(--safe-t) + var(--awning-h) + 18px) calc(16px + var(--safe-r)) calc(var(--safe-b) + 84px) calc(16px + var(--safe-l));
+  overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; touch-action: pan-y; pointer-events: none; }
 #panel[hidden] { display: none; }
-.tag { pointer-events: auto; position: relative; width: min(100%, 380px); background: var(--linen); color: var(--ink); border-radius: 10px; padding: 26px 20px 20px;
+#hud:not([hidden]) ~ #panel { padding-top: calc(var(--safe-t) + var(--awning-h) + 118px); }
+.tag { pointer-events: auto; position: relative; flex: none; margin: auto; width: min(100%, 380px); background: var(--linen); color: var(--ink); border-radius: 10px; padding: 26px 20px 20px; touch-action: pan-y;
   box-shadow: 0 2px 0 var(--linen-shade), 0 18px 40px rgba(0,0,0,.45); transform: rotate(-1deg); animation: hang .7s cubic-bezier(.2,.9,.3,1.15) both; }
+.tag.still { animation: none; }
 .tag::before { content: ""; position: absolute; top: 10px; left: 50%; width: 14px; height: 14px; margin-left: -7px; border-radius: 50%; background: var(--sky-mid); box-shadow: inset 0 0 0 3px var(--linen-shade); }
 .tag::after { content: ""; position: absolute; bottom: calc(100% - 17px); left: 50%; width: 2px; height: 120px; background: #D8C9A8; transform-origin: bottom; }
 #hud:not([hidden]) ~ #panel .tag::after { display: none; }
@@ -121,44 +142,92 @@ body.shake #gl { animation: shake .38s linear; }
 .tag h2 { font-size: 25px; }
 .tag p { margin: 0 0 12px; font-size: 16px; line-height: 1.4; color: var(--ink-soft); }
 .tag .chalk { font-family: var(--chalkf); font-size: 22px; line-height: 1.15; color: var(--ink); }
-.tag label { display: block; font-size: 13px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: var(--ink-soft); margin: 12px 0 5px; }
-.tag input[type=text] { width: 100%; padding: 11px 12px; border: 2px solid var(--ink); border-radius: 6px; background: #FFFBF2; color: var(--ink); font-size: 17px; caret-color: var(--awning); }
+.tag label, .tag .lab { display: block; font-size: 13px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: var(--ink-soft); margin: 12px 0 5px; }
+.tag input[type=text] { width: 100%; min-height: 46px; padding: 11px 12px; border: 2px solid var(--ink); border-radius: 6px; background: #FFFBF2; color: var(--ink); font-size: 17px; caret-color: var(--awning); }
 .tag input::placeholder { color: #8C8273; }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.chips button { border: 2px solid var(--ink); background: transparent; border-radius: 99px; padding: 6px 12px; font-weight: 600; font-size: 15px; color: var(--ink); cursor: pointer; }
+.chips button { border: 2px solid var(--ink); background: transparent; border-radius: 99px; min-height: 44px; padding: 6px 16px; font-weight: 600; font-size: 15px; color: var(--ink); cursor: pointer; }
 .chips button[aria-pressed=true] { background: var(--ink); color: var(--linen); }
-.btn { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; margin-top: 16px; padding: 14px 16px 13px; border: 0; border-radius: 8px; background: var(--awning); color: var(--linen);
+.btn { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; margin-top: 16px; padding: 14px 16px 13px; min-height: 52px; border: 0; border-radius: 8px; background: var(--awning); color: var(--linen);
   font-family: var(--disp); font-size: 19px; letter-spacing: .01em; cursor: pointer; box-shadow: 0 4px 0 var(--awning-deep), 0 8px 16px rgba(0,0,0,.2); transition: transform .12s, box-shadow .12s; }
 .btn:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--awning-deep); }
 .btn:disabled { background: #A9A08F; box-shadow: 0 4px 0 #857C6C; cursor: default; }
-.btn.alt { background: transparent; color: var(--ink); border: 2px solid var(--ink); box-shadow: none; font-size: 16px; padding: 11px 14px; margin-top: 10px; }
+.btn.alt { background: transparent; color: var(--ink); border: 2px solid var(--ink); box-shadow: none; font-size: 16px; padding: 11px 14px; margin-top: 10px; min-height: 48px; }
 .btn svg { width: 20px; height: 20px; flex: none; }
 .row { display: flex; gap: 8px; } .row .btn { margin-top: 10px; }
 textarea.msg { width: 100%; min-height: 108px; resize: none; padding: 10px 12px; border: 2px dashed var(--ink-soft); border-radius: 6px; background: #FFFBF2; color: var(--ink); font: 15px/1.4 var(--ui); }
 .how { margin: 18px 0 0; padding: 10px 0 0; border-top: 2px dashed var(--linen-shade); font-size: 14px; color: var(--ink-soft); line-height: 1.45; }
 .how b { color: var(--ink); }
-.vs { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 10px; margin: 8px 0 4px; }
-.vs .p { text-align: center; }
+.vs { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 10px; margin: 14px 0 6px; }
+.vs .p { text-align: center; min-width: 0; }
 .vs .p .n { font-family: var(--chalkf); font-size: 24px; line-height: 1; overflow-wrap: anywhere; }
-.vs .p .s { font-family: var(--disp); font-size: 40px; line-height: 1.05; font-variant-numeric: tabular-nums; }
+.vs .p .s { font-family: var(--disp); font-size: 44px; line-height: 1.05; font-variant-numeric: tabular-nums; }
 .vs .p.x .s { color: #D36A1E; } .vs .p.o .s { color: #1E9C83; }
-.vs .p .st { font-size: 13px; font-weight: 600; color: var(--ink-soft); min-height: 18px; }
-.vs .mid { font-family: var(--disp); font-size: 16px; color: var(--ink-soft); }
-table.rounds { width: 100%; border-collapse: collapse; margin: 8px 0 2px; font-variant-numeric: tabular-nums; }
-table.rounds td { padding: 5px 4px; border-top: 1px solid var(--linen-shade); font-size: 15px; text-align: center; }
-table.rounds td:first-child { text-align: left; color: var(--ink-soft); font-weight: 600; }
-table.rounds .w { font-weight: 800; color: var(--ink); text-decoration: underline 2px; text-underline-offset: 3px; }
+.vs .p.win .s { text-decoration: underline 4px; text-underline-offset: 6px; }
+.vs .p .st { font-size: 13px; font-weight: 600; color: var(--ink-soft); margin-top: 2px; }
+.vs .mid { font-family: var(--disp); font-size: 22px; color: var(--ink-soft); }
 .stake { margin-top: 10px; padding: 10px 12px; border: 2px solid var(--ink); border-radius: 6px; font-family: var(--chalkf); font-size: 22px; line-height: 1.1; transform: rotate(.6deg); }
 .small { font-size: 13px !important; }
 
-#toast { position: fixed; left: 50%; bottom: calc(var(--safe-b) + 24px); transform: translateX(-50%); background: var(--ink); color: var(--linen); padding: 10px 16px; border-radius: 8px; font-weight: 600; font-size: 15px; box-shadow: 0 8px 20px rgba(0,0,0,.4); max-width: 90vw; text-align: center; }
-#sound { position: fixed; right: 10px; bottom: calc(var(--safe-b) + 10px); width: 44px; height: 44px; border-radius: 50%; border: 0; background: rgba(27,26,23,.55); color: var(--linen); display: grid; place-items: center; cursor: pointer; }
-#sound svg { width: 22px; height: 22px; }
+#toast { position: fixed; left: 50%; bottom: calc(var(--safe-b) + 70px); transform: translateX(-50%); background: var(--ink); color: var(--linen); padding: 10px 16px; border-radius: 8px; font-weight: 600; font-size: 15px; box-shadow: 0 8px 20px rgba(0,0,0,.4); max-width: 90vw; text-align: center; }
+#sound, #fs { position: fixed; bottom: calc(var(--safe-b) + 10px); width: 44px; height: 44px; border-radius: 50%; border: 0; background: rgba(27,26,23,.62); color: var(--linen); display: grid; place-items: center; cursor: pointer; padding: 0; }
+#sound { right: calc(10px + var(--safe-r)); } #fs { right: calc(62px + var(--safe-r)); }
+#fs[hidden] { display: none; }
+#sound svg, #fs svg { width: 22px; height: 22px; }
+#sound:hover, #fs:hover { background: rgba(27,26,23,.82); }
+/* nápověda pro iPhone: Safari tam fullscreen neumí, jde to jen přes plochu */
+#iosHint { position: fixed; left: calc(12px + var(--safe-l)); right: calc(70px + var(--safe-r)); bottom: calc(var(--safe-b) + 8px); display: flex; align-items: center; gap: 4px; background: var(--linen); color: var(--ink); border-radius: 6px; padding: 4px 4px 4px 12px; box-shadow: 0 8px 18px rgba(0,0,0,.35); font-size: 14px; line-height: 1.25; font-weight: 600; transform: rotate(-.6deg); }
+#iosHint[hidden], body.playing #iosHint { display: none; }
+#iosHint span { flex: 1; }
+#iosHint span svg { width: 16px; height: 16px; vertical-align: -3px; margin: 0 1px; }
+#iosHint button { flex: none; width: 44px; height: 44px; border: 0; background: transparent; color: var(--ink); display: grid; place-items: center; cursor: pointer; border-radius: 50%; padding: 0; }
+#iosHint button svg { width: 18px; height: 18px; }
 
 @media (min-width: 720px) {
-  #hud { padding: 0 32px; }
+  #hud { padding: 0 calc(32px + var(--safe-r)) 0 calc(32px + var(--safe-l)); }
   .sign .who { font-size: 22px; }
   .cells b { width: 32px; height: 42px; font-size: 30px; }
+}
+/* desktop: vlastní rozvržení, ne roztažený mobil */
+@media (min-width: 960px) and (min-height: 560px) {
+  :root { --awning-h: 104px; --crate-h: 150px; }
+  #hud { width: min(100%, 1640px); margin: 0 auto; padding: 0 clamp(40px, 7vw, 150px); gap: 28px; }
+  .sign { padding: 10px 18px 12px; border-width: 5px; border-radius: 8px; transform-origin: 50% -42px; }
+  .sign::before, .sign::after { height: 42px; top: -42px; }
+  .sign .who { font-size: 30px; max-width: 18vw; gap: 9px; }
+  .sign .who i { width: 12px; height: 12px; }
+  .cells { gap: 5px; margin-top: 6px; }
+  .cells b { width: 48px; height: 64px; font-size: 44px; border-radius: 4px; }
+  .sign .state { font-size: 19px; min-height: 22px; margin-top: 5px; }
+  .clock { padding: 8px 20px 10px; margin-top: 12px; border-radius: 5px; min-width: 160px; }
+  .clock .t { font-size: 44px; }
+  .clock .r { font-size: 13px; margin-top: 4px; }
+  .clock .ser { font-size: 21px; margin-top: 5px; } .clock .ser b { font-size: 19px; }
+  #count { font-size: min(22vw, 260px); }
+  #banner { top: calc(var(--safe-t) + var(--awning-h) + 150px); right: 7vw; max-width: 420px; padding: 10px 16px 11px 18px; }
+  #banner { transform: translateX(calc(100% + 10vw)); } #banner.on { transform: translateX(0); }
+  #banner svg { width: 42px; height: 42px; } #banner .txt { font-size: 26px; }
+  .float { font-size: 28px; } .float small { font-size: 22px; }
+  /* visačka s nabídkou visí vlevo, aby za ní byl vidět stánek a létající ovoce */
+  #panel { justify-content: flex-start; padding-left: clamp(40px, 8vw, 170px); padding-right: 40px; padding-bottom: calc(var(--safe-b) + 40px); }
+  .tag { margin: auto 0; width: 440px; padding: 32px 28px 26px; }
+  .tag h1 { font-size: 44px; } .tag h2 { font-size: 30px; }
+  .tag p { font-size: 17px; }
+  .tag::after { height: 150px; }
+  #hud:not([hidden]) ~ #panel { padding-top: calc(var(--safe-t) + var(--awning-h) + 190px); }
+  #toast { bottom: calc(var(--safe-b) + 40px); }
+}
+/* telefon na šířku: málo výšky, takže menší markýza a cedulky */
+@media (max-height: 520px) and (orientation: landscape) {
+  :root { --awning-h: 52px; --crate-h: 64px; }
+  .sign { padding: 3px 8px 4px; } .sign .who { font-size: 16px; } .cells { margin-top: 2px; }
+  .cells b { width: 22px; height: 28px; font-size: 20px; } .sign .state { display: none; }
+  .sign::before, .sign::after { height: 16px; top: -16px; }
+  .clock { margin-top: 2px; padding: 3px 10px 4px; } .clock .t { font-size: 22px; }
+  #panel { padding-top: calc(var(--safe-t) + var(--awning-h) + 8px); padding-bottom: calc(var(--safe-b) + 60px); }
+  #hud:not([hidden]) ~ #panel { padding-top: calc(var(--safe-t) + var(--awning-h) + 88px); }
+  .tag::after { display: none; }
+  #count { font-size: 34vh; }
 }
 @media (prefers-reduced-motion: reduce) {
   .bulb-glow, .tag, #count span, .cells b.flip, .sign.hit, .float { animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
@@ -181,11 +250,8 @@ table.rounds .w { font-weight: 800; color: var(--ink); text-decoration: underlin
     <g fill="#FFD27A" opacity=".7"><rect x="58" y="128" width="5" height="6"/><rect x="66" y="128" width="5" height="6"/><rect x="242" y="118" width="5" height="6"/><rect x="321" y="126" width="5" height="6"/></g>
   </svg>
   <svg class="bulbs" id="bulbs"></svg>
-  <svg class="awning" viewBox="0 0 400 80" preserveAspectRatio="none">
-    <defs><pattern id="stripes" width="40" height="80" patternUnits="userSpaceOnUse"><rect width="20" height="80" fill="#C8372D"/><rect x="20" width="20" height="80" fill="#F1E6D0"/></pattern></defs>
-    <path d="M0 0 H400 V58 Q390 76 380 58 Q370 76 360 58 Q350 76 340 58 Q330 76 320 58 Q310 76 300 58 Q290 76 280 58 Q270 76 260 58 Q250 76 240 58 Q230 76 220 58 Q210 76 200 58 Q190 76 180 58 Q170 76 160 58 Q150 76 140 58 Q130 76 120 58 Q110 76 100 58 Q90 76 80 58 Q70 76 60 58 Q50 76 40 58 Q30 76 20 58 Q10 76 0 58Z" fill="url(#stripes)"/>
-    <path d="M0 52 H400" stroke="#000" stroke-opacity=".18" stroke-width="3"/>
-  </svg>
+  <svg class="awning" id="awning" viewBox="0 0 400 80" preserveAspectRatio="none"></svg>
+  <div class="crates-fill"></div>
   <svg class="crates" id="crates"></svg>
 </div>
 
@@ -197,7 +263,7 @@ table.rounds .w { font-weight: 800; color: var(--ink); text-decoration: underlin
 
 <header id="hud" hidden>
   <div class="sign me" id="signMe"><div class="who"><i></i><span id="nameMe">Já</span></div><div class="cells" id="cellsMe"></div><div class="state" id="stateMe"></div></div>
-  <div class="clock" aria-live="off"><div class="t" id="timer">60</div><div class="r" id="roundLabel">1. kolo</div><div class="dots" id="dots"></div></div>
+  <div class="clock" aria-live="off"><div class="t" id="timer">2:00</div><div class="r" id="roundLabel">Souboj č. 1</div><div class="ser" id="ser"></div></div>
   <div class="sign opp" id="signOpp"><div class="who"><i></i><span id="nameOpp">Soupeř</span></div><div class="cells" id="cellsOpp"></div><div class="state" id="stateOpp"></div></div>
 </header>
 <div id="count" aria-live="assertive"></div>
@@ -205,6 +271,8 @@ table.rounds .w { font-weight: 800; color: var(--ink); text-decoration: underlin
 <div id="net" hidden></div>
 <main id="panel"></main>
 <div id="toast" role="status" hidden></div>
+<div id="iosHint" hidden><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3M7 8l5-5 5 5"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg> Pro celou obrazovku: Sdílet → Přidat na plochu</span><button type="button" id="iosHintX" aria-label="Zavřít nápovědu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+<button id="fs" type="button" aria-label="Celá obrazovka" hidden></button>
 <button id="sound" type="button" aria-label="Zvuk zapnutý"></button>
 
 <script type="module" src="./src/main.js"></script>

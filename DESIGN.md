@@ -29,3 +29,9 @@ průměrném snímku nad 22 ms.
 
 ## Pravidla textu
 Tykání, neutrální slovesa místo rodu (Radka „posílá“, kolo „bere“ Mark). Sabotáže vždy podepsané jménem.
+
+## Rozvržení podle zařízení
+- Mobil na výšku: plocha přes celou výšku (`--app-h` = `100dvh`, na iOS přepsáno `innerHeight`), tělo přibité (`position: fixed`), plátno `touch-action: none`, panel se scrolluje samostatně. Dotykové cíle ≥ 44 px.
+- Desktop (≥ 960×560): větší markýza (104 px) a bedny (150 px), cedulky s buňkami 48×64 u okrajů, visačka menu vlevo (stánek a ovoce zůstávají vidět), vlastní kurzor (lněný kroužek). Markýza a bedny se kreslí v pixelech v `paintStage`, nedeformují se. Spawn ovoce je omezen na pole nejvýš 1,8× výška / 1900 px (`scene.fieldHalf`).
+- Celá obrazovka: tlačítko Fullscreen API tam, kde je; na iPhonu (Safari neumí) nápověda „Sdílet → Přidat na plochu“ + `manifest.webmanifest` (standalone) a ikony z `icons/icon.svg` (`node tools/make-icons.cjs`).
+- HUD hodiny: m:ss, „Souboj č. N“ a série „já : soupeř“ místo puntíků kol.
