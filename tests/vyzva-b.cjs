@@ -84,7 +84,7 @@ const serText = async p => (await p.innerText("#ser")).replace(/\s+/g, " ");
   const [nA, nB] = await Promise.all([names(A), names(B)]);
   check("lobby: A = Mark proti Radce na sedadle o", same(nA, { me: "Mark", opp: "Radka", seat: "o" }), JSON.stringify(nA));
   check("lobby: B = Radka proti Markovi na sedadle x", same(nB, { me: "Radka", opp: "Mark", seat: "x" }), JSON.stringify(nB));
-  check("lobby: série na začátku „jedno kolo“", (await serText(A)) === "jedno kolo" && (await serText(B)) === "jedno kolo");
+  check("lobby: série na začátku „souboj č. 1“", (await serText(A)) === "souboj č. 1" && (await serText(B)) === "souboj č. 1");
 
   const w1 = await playRound(A, B, A, "hra 2 kolo 1");
   check("kolo 1: vyhrál Mark (jen on sekal)", w1 === "Mark", w1);
@@ -98,7 +98,7 @@ const serText = async p => (await p.innerText("#ser")).replace(/\s+/g, " ");
   const w2 = await playRound(A, B, B, "hra 2 odveta");
   check("odveta: vyhrála Radka", w2 === "Radka", w2);
   check("odveta: série 1 : 1 na obou stranách", (await serText(A)) === "série 1 : 1" && (await serText(B)) === "série 1 : 1", `${await serText(A)} | ${await serText(B)}`);
-  check("odveta: číslo souboje 2 na obou stranách", (await A.innerText("#roundLabel")).toUpperCase() === "SOUBOJ Č. 2" && (await B.innerText("#roundLabel")).toUpperCase() === "SOUBOJ Č. 2");
+  check("odveta: mód „Na čas“ v hodinách na obou stranách", (await A.innerText("#roundLabel")).toUpperCase() === "NA ČAS" && (await B.innerText("#roundLabel")).toUpperCase() === "NA ČAS");
 
   // 3) B založí hru bez jména soupeře: Mark se při přijetí neoznačí jménem Radky
   await B.goto(BASE + "?kolo=10"); await B.waitForSelector("#bCreate"); await B.click("#bCreate");
