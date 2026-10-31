@@ -29,3 +29,8 @@ skew startu 341/225 ms, naschvály 14/14, zpoždění prům. 1177 ms vč. 2,6s f
 průměr, 1% low 59,5 fps, CPU 4× zpomalené, Pixel 7 emulace, GPU AMD (D3D11), max 27 draw calls, 6 kusů naráz.
 Neověřeno: softwarové vykreslení bez GPU (swiftshader + 4× CPU) test nedoběhl do startu kola; skutečný telefon.
 Otevřené: případné vyladění obtížnosti (bomby ~20 % kusů), Mark ještě neviděl hru na svém mobilu.
+
+## 2026-10-31 odpoledne – jedno kolo, fullscreen, layouty, design review
+Commity 6c7083a + f8cdc02 nasazené na Pages. Jedno kolo 1/2 min (výchozí 2), fullscreen / iOS „Přidat na plochu“ + manifest, mobil na výšku, vlastní desktop, 13 nálezů design-eye opraveno.
+Živě: `node tests/duel.cjs https://sachasportrezervace-arch.github.io/ovocny-souboj/` 42/42 (Chromium desktop 1440×900 + WebKit iPhone 13), skew 149 ms, naschvály 2/2 (prům. 379 ms). `perf.cjs <URL> 4 1`: 60 fps, 1% low 59,5, max 21 draw calls.
+Neověřeno: skutečný telefon (vibrace, standalone, váha Figtree 800 v Safari), stav „soupeř nedohrál“ bez testu. Fullscreen ikona na desktopu leží nad nápisem bedny (na dřevěném podkladu).
