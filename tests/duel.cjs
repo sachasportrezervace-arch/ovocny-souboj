@@ -71,7 +71,7 @@ async function bot(p, untilMs) {
   await B.screenshot({ path: path.join(SH, "2-prijeti-B.png") });
   await B.click("#bAccept");
   await B.waitForSelector("#bReady", { timeout: 15000 });
-  await A.click("#bLobby");
+  await A.locator("#bLobby").click({ timeout: 3000 }).catch(() => {}); // host se po přijetí přesune do lobby i sám
   await A.waitForSelector("#bReady:not([disabled])", { timeout: 15000 });
   check("lobby: oba u stánku", true);
 

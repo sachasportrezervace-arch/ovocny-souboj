@@ -18,7 +18,8 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   await A.waitForSelector("#msg");
   const link = (await A.inputValue("#msg")).match(/https?:\/\/\S+#r\.[0-9a-z]+/)[0];
   await B.goto(link); await B.click("#bAccept"); await B.waitForSelector("#bReady");
-  await A.click("#bLobby"); await A.waitForSelector("#bReady:not([disabled])");
+  await A.locator("#bLobby").click({ timeout: 3000 }).catch(() => {}); // host se po přijetí přesune do lobby i sám
+  await A.waitForSelector("#bReady:not([disabled])");
   const cdp = await A.context().newCDPSession(A);
   await cdp.send("Emulation.setCPUThrottlingRate", { rate: RATE });
   await Promise.all([A.click("#bReady"), B.click("#bReady")]);
