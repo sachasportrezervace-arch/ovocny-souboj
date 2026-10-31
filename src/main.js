@@ -227,12 +227,35 @@ function cells(el, n) {
     }
   });
 }
+// plovoucí text u řezu; nový se posune nad ještě viditelné texty, aby se nikdy nepřekrývaly (např. „+5“ a „Přesně!“ u karamboly)
+const floatBoxes = [];
 function float(x, y, html, cls = "") {
   const el = document.createElement("div");
   el.className = "float " + cls; el.innerHTML = html;
   el.style.left = x + "px"; el.style.top = y + "px";
   $("floats").appendChild(el);
-  setTimeout(() => el.remove(), 1200);
+  const w = el.offsetWidth, h = el.offsetHeight, t = performance.now();
+  while (floatBoxes.length && t - floatBoxes[0].t > 1100) floatBoxes.shift();
+  const bn = $("banner"), bnr = bn.classList.contains("on") ? bn.getBoundingClientRect() : null;   // oznámení naschvalu je taky překážka
+  const obstacles = bnr ? [{ x: (bnr.left + bnr.right) / 2, y: (bnr.top + bnr.bottom) / 2, w: bnr.width, h: bnr.height }, ...floatBoxes] : floatBoxes;
+  const top = ($("hud").hidden ? 0 : $("hud").getBoundingClientRect().bottom) + 8;   // pod cedulkami, nikdy ne přes ně
+  x = Math.max(w / 2 + 6, Math.min(innerWidth - w / 2 - 6, x));
+  y = Math.max(top + h / 2, y);
+  const clash = yy => obstacles.find(b => Math.abs(b.x - x) < (b.w + w) / 2 + 4 && Math.abs(b.y - yy) < (b.h + h) / 2 + 2);
+  const slide = dir => {                                  // posouvá nad (-1) nebo pod (+1) překážky, dokud se vejde na obrazovku
+    let yy = y;
+    for (let g = 0; g < 8; g++) {
+      const b = clash(yy);
+      if (!b) return yy;
+      yy = b.y + dir * ((b.h + h) / 2 + 4);
+      if (yy < top + h / 2 || yy > innerHeight - h / 2 - 70) return null;
+    }
+    return null;
+  };
+  if (clash(y)) { const u = slide(-1), d = u === null ? slide(1) : null; y = u !== null ? u : d !== null ? d : y; }
+  el.style.left = x + "px"; el.style.top = y + "px";
+  floatBoxes.push({ x, y, w, h, t });
+  setTimeout(() => el.remove(), 1400);
 }
 function shot(x, y) {
   const el = document.createElement("div"), r = $("signOpp").getBoundingClientRect();
@@ -548,7 +571,7 @@ function hudSeries(hx, ho, m) {
   const st = Sim.matchState(hx, ho, m), ser = Sim.series(hx, ho);
   const mine = room.seat === "x" ? ser : [ser[1], ser[0]];
   $("roundLabel").textContent = `Souboj č. ${m}`;
-  $("ser").innerHTML = m > 1 || mine[0] + mine[1] > 0 ? `série <b class="m">${mine[0]}</b> : <b class="o">${mine[1]}</b>` : `jedno kolo`;
+  $("ser").innerHTML = m > 1 || mine[0] + mine[1] > 0 ? `série <b class="${room.seat}">${mine[0]}</b> : <b class="${other(room.seat)}">${mine[1]}</b>` : `jedno kolo`;
   return st;
 }
 function hists() {
@@ -618,7 +641,7 @@ function viewResult(hx, ho) {
   const hint = oppRdy ? `${esc(oppName())} už čeká na tebe.` : rdy ? "Odpočet naskočí, až klepne i soupeř. Nechce se mu? Pošli odkaz a vraťte se později." : "";
   showView("result", cols({
     head: `<h2>${head}</h2>`,
-    form: `<div class="vs">${side("x", g.a, r.x)}<div class="mid">:</div>${side("o", g.b, r.o)}</div>`,
+    form: `<div class="vs">${room.seat === "o" ? side("o", g.b, r.o) + '<div class="mid">:</div>' + side("x", g.a, r.x) : side("x", g.a, r.x) + '<div class="mid">:</div>' + side("o", g.b, r.o)}</div>`,   // já vlevo, stejně jako v HUD
     intro: stake,
     cta: `<button class="btn" id="bNext" ${rdy ? "disabled" : ""}>${rdy ? "Čekám na soupeře…" : "Odveta"}</button>
     ${hint ? `<p class="small" style="margin:8px 0 0;text-align:center">${hint}</p>` : ""}
@@ -805,7 +828,7 @@ function hit(o, p, dx, dy, now, speed, precise) {
   if (precise) {
     game.precise++;
     scene.ring(o.g.position.x, o.g.position.y, "#FFE08A");
-    if (!reduced) scene.burst(o.g.position.x, o.g.position.y, JUICE[o.kind] || "#FFF1B8", 14, 13, 0.7, 0.9);
+    if (!reduced) scene.burst(o.g.position.x, o.g.position.y, JUICE[o.kind] || "#FFF1B8", 8, 13, 0.4, 0.6);
     sound.precise(); buzz(18);
     if (frozenHit) {
       // protiútok za dovednost: přesně rozseknutý led se vrací odesílateli jako mráz
@@ -944,7 +967,7 @@ function frame(now) {
     const clock = now;
     if (now > idleNext && game.live.length < 3 && !document.hidden) {
       idleNext = now + 1400 + idleRng() * 900;
-      const kinds = [...Sim.FRUITS, "karambola"];
+      const kinds = [...Sim.FRUITS];   // karambola jen ve hře, v menu by visela pod visačkou bez významu
       const u = (idleRng() * 2 - 1) * 0.7;
       spawnItem({ kind: kinds[Math.floor(idleRng() * kinds.length)], u, vu: -u * 0.5, apex: 1 + idleRng() * 5, spin: [idleRng(), idleRng(), idleRng(), 2] }, clock);
     }
@@ -972,6 +995,7 @@ window.__ovs = {
   state: () => ({ phase, view, K, score: game.score, opp: room && room.opp ? room.opp.sc : null, seat: room && room.seat, go: room && room.meta.g.go, rl: room && room.meta.g.rl, sent: game.sent, got: game.got, precise: game.precise, charge: game.charge, bombs: game.bombs, cuts: game.cuts, queue: game.queue.length, live: game.live.length }),
   targets: () => game.live.filter(o => !o.dead).map(o => ({ kind: o.kind, ice: !!o.ice, ...scene.toScreen(o.g.position.x, o.g.position.y), r: o.r / scene.HALF_H * scene.h / 2 })),
   fps: fpsStats,
+  float,
   drawCalls: () => scene.renderer.info.render.calls,
 };
 

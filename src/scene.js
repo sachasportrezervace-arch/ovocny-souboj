@@ -13,7 +13,7 @@ const LOOK = {
   svestka: { skin: ["#3E2E7A", "#5B44A8"], flesh: "#F2B13C", juice: "#9B5BD4", scale: [0.86, 1, 0.86], r: 0.84, stem: true },
   citron: { skin: ["#F7D531", "#E9C21A"], flesh: "#FBEB8A", juice: "#FFE45C", scale: [1.26, 0.9, 0.9], r: 0.92 },
   jablko: { skin: ["#D9262E", "#F05A3A"], flesh: "#F7EDC7", juice: "#FFF1B8", scale: [1, 0.93, 1], r: 0.96, stem: true, leaf: true },
-  kiwi: { skin: ["#7A5532", "#8D6440"], flesh: "#8FC63F", juice: "#A6D654", scale: [1.12, 0.88, 0.88], r: 0.9 },
+  kiwi: { skin: ["#A67B45", "#7C5630"], flesh: "#8FC63F", juice: "#A6D654", scale: [1.12, 0.88, 0.88], r: 0.9 },
   karambola: { skin: ["#FFC81F", "#F2B705"], flesh: "#FFE47A", juice: "#FFD84A", scale: [1, 1, 1], r: 1.05 },
 };
 
@@ -28,36 +28,36 @@ function toonRamp() {
 function merge(parts) {
   let n = 0;
   parts.forEach(g => n += g.attributes.position.count);
-  const pos = new Float32Array(n * 3), col = new Float32Array(n * 3);
+  const pos = new Float32Array(n * 3), col = new Float32Array(n * 3), nor = new Float32Array(n * 3);
   let o = 0;
   for (const g of parts) {
     pos.set(g.attributes.position.array, o * 3);
     col.set(g.attributes.color.array, o * 3);
+    nor.set(g.attributes.normal.array, o * 3);        // hladké normály koule: toon rampa dá čisté 3 pruhy stínu, ne fasety
     o += g.attributes.position.count;
   }
   const out = new THREE.BufferGeometry();
   out.setAttribute("position", new THREE.BufferAttribute(pos, 3));
   out.setAttribute("color", new THREE.BufferAttribute(col, 3));
-  out.computeVertexNormals();
+  out.setAttribute("normal", new THREE.BufferAttribute(nor, 3));
   out.computeBoundingSphere();
   return out;
 }
-// obarví trojúhelníky podle funkce těžiště -> barva
+// obarví vrcholy podle funkce pozice -> barva (barvy se mezi vrcholy prolnou, hrany skvrn nejsou zubaté)
 function paint(geo, fn) {
   const g = geo.index ? geo.toNonIndexed() : geo;
   const p = g.attributes.position, col = new Float32Array(p.count * 3), c = new THREE.Color(), v = new THREE.Vector3();
-  for (let i = 0; i < p.count; i += 3) {
-    v.set(0, 0, 0);
-    for (let k = 0; k < 3; k++) v.x += p.getX(i + k) / 3, v.y += p.getY(i + k) / 3, v.z += p.getZ(i + k) / 3;
-    c.copy(fn(v, i / 3));
-    for (let k = 0; k < 3; k++) col.set([c.r, c.g, c.b], (i + k) * 3);
+  for (let i = 0; i < p.count; i++) {
+    v.set(p.getX(i), p.getY(i), p.getZ(i));
+    c.copy(fn(v, i));
+    col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b;
   }
   g.setAttribute("color", new THREE.BufferAttribute(col, 3));
   return g;
 }
 const jitter = (hex, i, amt = 0.05) => {
   const c = C(hex), h = Math.sin(i * 12.9898) * 43758.5453;
-  return c.offsetHSL(0, 0, ((h - Math.floor(h)) - 0.5) * amt);
+  return c.offsetHSL(0, 0, ((h - Math.floor(h)) - 0.5) * amt * 0.2);   // jen náznak, aby plocha nebyla mrtvě jednobarevná
 };
 function skinFn(kind) {
   const L = LOOK[kind];
@@ -65,9 +65,10 @@ function skinFn(kind) {
     const a = Math.atan2(v.z, v.y) / (Math.PI * 2) + 0.5;
     return jitter(Math.floor(a * 12) % 2 ? L.skin[0] : L.skin[1], i, 0.04);
   };
-  if (kind === "svestka") return (v, i) => jitter(v.y > 0.55 ? "#6F5BB8" : L.skin[i % 3 ? 0 : 1], i, 0.05);
+  if (kind === "svestka") return (v, i) => jitter(v.y > 0.55 ? "#6F5BB8" : L.skin[0], i, 0.05);
   if (kind === "jablko") return (v, i) => jitter(v.x + v.z * 0.3 > 0.35 ? "#F2A23A" : L.skin[0], i, 0.06);
-  return (v, i) => jitter(L.skin[i % 4 ? 0 : 1], i, 0.07);
+  if (kind === "kiwi") return (v, i) => jitter(Math.sin(v.x * 11) * Math.sin(v.y * 13 + 1) * Math.sin(v.z * 12) > 0.35 || v.y + v.x * 0.25 < -0.5 ? L.skin[1] : L.skin[0], i, 0.07);   // chloupky jako tmavé skvrny
+  return (v, i) => jitter(v.y + v.x * 0.25 < -0.5 ? L.skin[1] : L.skin[0], i, 0.07);   // tmavší spodek: plochý „stín“ jako tvar
 }
 function extras(kind) {
   const L = LOOK[kind], out = [];
@@ -166,7 +167,7 @@ export function createScene(canvas, opts = {}) {
     const L = LOOK[kind];
     if (kind === "karambola") {
       const ex = d => new THREE.ExtrudeGeometry(starShape(1.05, 0.55), { depth: d, bevelEnabled: true, bevelThickness: 0.12, bevelSize: 0.08, bevelSegments: 1 }).translate(0, 0, -d / 2);
-      const whole = paint(ex(0.7), (v, i) => jitter(L.skin[i % 3 ? 0 : 1], i, 0.06));
+      const whole = paint(ex(0.7), (v, i) => jitter(L.skin[0], i, 0.06));
       const half = ex(0.3);
       kit[kind] = {
         whole, wholeMat: skinMat,
@@ -176,8 +177,8 @@ export function createScene(canvas, opts = {}) {
       };
       continue;
     }
-    const whole = merge([paint(new THREE.SphereGeometry(1, 12, 9), skinFn(kind)), ...extras(kind)]);
-    const half = paint(new THREE.SphereGeometry(1, 12, 5, 0, Math.PI * 2, 0, Math.PI / 2), skinFn(kind));
+    const whole = merge([paint(new THREE.SphereGeometry(1, 24, 16), skinFn(kind)), ...extras(kind)]);
+    const half = paint(new THREE.SphereGeometry(1, 24, 8, 0, Math.PI * 2, 0, Math.PI / 2), skinFn(kind));
     const capGeo = new THREE.CircleGeometry(1, 16).rotateX(Math.PI / 2);
     kit[kind] = {
       whole, wholeMat: skinMat, half, capGeo,
@@ -187,7 +188,7 @@ export function createScene(canvas, opts = {}) {
   const bombKit = {};
   function bombGeo(band) {
     if (bombKit[band]) return bombKit[band];
-    const body = paint(new THREE.SphereGeometry(1, 12, 9), (v, i) => Math.abs(v.y) < 0.2 ? C(band) : jitter("#232B3D", i, 0.06));
+    const body = paint(new THREE.SphereGeometry(1, 24, 16), (v, i) => Math.abs(v.y) < 0.2 ? C(band) : jitter("#232B3D", i, 0.06));
     const cap = paint(new THREE.CylinderGeometry(0.32, 0.38, 0.28, 8).translate(0, 0.98, 0), () => C("#59616F"));
     const fuse = paint(new THREE.CylinderGeometry(0.06, 0.06, 0.5, 5).rotateZ(0.4).translate(0.12, 1.3, 0), () => C("#C8A26B"));
     return bombKit[band] = merge([body, cap, fuse]);
@@ -207,8 +208,7 @@ export function createScene(canvas, opts = {}) {
       void main(){ vC = color; vec4 mv = modelViewMatrix * vec4(position,1.0); gl_PointSize = size * uScale / -mv.z; gl_Position = projectionMatrix * mv; }`,
     fragmentShader: `varying vec3 vC;
       void main(){ vec2 d = gl_PointCoord - 0.5; float r = length(d); if (r > 0.5) discard;
-        float hi = smoothstep(0.32, 0.0, length(d + vec2(0.16, 0.16)));
-        gl_FragColor = vec4(mix(vC, vec3(1.0), hi * 0.55), smoothstep(0.5, 0.36, r));
+        gl_FragColor = vec4(vC, smoothstep(0.5, 0.44, r));   // plochá kapka bez odlesku
         #include <colorspace_fragment>
       }`,
     vertexColors: true, transparent: true, depthWrite: false,
@@ -236,7 +236,7 @@ export function createScene(canvas, opts = {}) {
   // prstenec jisker pro přesný řez
   function ring(x, y, color, n = 20) {
     if (opts.reduced) n = 8;
-    for (let k = 0; k < n; k++) { const a = k / n * Math.PI * 2; emit(x, y, 1.5, Math.cos(a) * 15, Math.sin(a) * 15, color, 0.7, 0.55, 0.1); }
+    for (let k = 0; k < n; k++) { const a = k / n * Math.PI * 2; emit(x, y, 1.5, Math.cos(a) * 15, Math.sin(a) * 15, color, 0.4, 0.5, 0.1); }
   }
   function stepParticles(dt) {
     for (let i = 0; i < PMAX; i++) {
@@ -297,7 +297,8 @@ export function createScene(canvas, opts = {}) {
       const g = new THREE.Group();
       const shell = new THREE.Mesh(k.half, skinMat);
       const cap = new THREE.Mesh(k.capGeo, k.capMat);
-      g.add(shell, cap);
+      const rim = new THREE.Mesh(k.half, outlineMat); rim.scale.setScalar(1.07);   // stejný světlý obrys jako u celého ovoce
+      g.add(shell, cap, rim);
       const sc = o.mesh.scale;
       g.scale.copy(sc);
       const dir = n.clone().multiplyScalar(sgn);
@@ -310,20 +311,19 @@ export function createScene(canvas, opts = {}) {
         axis: new THREE.Vector3(d.x, d.y, 0.3).normalize(), w: (4 + Math.random() * 3) * sgn, life: 3,
       });
     }
-    burst(base.x, base.y, L.juice, 16, 11, 0.62, 0.95);
-    burst(base.x, base.y, "#FFFFFF", 3, 7, 0.4, 0.4);
+    burst(base.x, base.y, L.juice, 12, 11, 0.34, 0.6);
   }
   function crack(o) {
     if (!o.ice) return;
     o.g.remove(o.ice); o.ice = null;
-    burst(o.g.position.x, o.g.position.y, "#DDF6FF", 14, 10, 0.5, 0.6);
+    burst(o.g.position.x, o.g.position.y, "#DDF6FF", 10, 10, 0.3, 0.5);
   }
   function explode(o) {
     remove(o);
     const p = o.g.position;
-    burst(p.x, p.y, "#FFD27A", 22, 16, 0.8, 0.7);
-    burst(p.x, p.y, "#FF5A2F", 14, 12, 0.9, 0.6);
-    burst(p.x, p.y, "#2A3142", 12, 9, 1.0, 0.9);
+    burst(p.x, p.y, "#FFD27A", 14, 16, 0.45, 0.5);
+    burst(p.x, p.y, "#FF5A2F", 10, 12, 0.5, 0.45);
+    burst(p.x, p.y, "#2A3142", 8, 9, 0.55, 0.6);
   }
   function stepHalves(dt) {
     for (let i = halves.length - 1; i >= 0; i--) {

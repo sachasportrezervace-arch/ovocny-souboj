@@ -21,7 +21,7 @@ stěna ×1,07); bomba má obrys teplý oranžový `#FF7A4D` a červený pás, ta
 - Figtree 400/600/800: drobné UI a vstupy
 
 ## 3D (three.js r170, `src/scene.js`)
-Low-poly koule 12×9 s barvami vrcholů a toon rampou o 3 stupních, světlý obrys (zadní stěny ×1,07). Celé ovoce = 1 geometrie
+Hladké koule 24×16 s hladkými normálami, barvami po vrcholech a toon rampou o 3 stupních (čistý cel-shading, ne fasety), světlý obrys (zadní stěny ×1,07, i na půlkách). Celé ovoce = 1 geometrie
 (slupka + stopka + list sloučené), řez = polokoule + disk s texturou dužiny 128 px. Kapky, jiskry a prstenec přesného řezu v jednom
 `Points` (pool 320, při omezeném pohybu 160). Max ~27 draw calls při plné obrazovce. Adaptivní pixel ratio (2 → 1,5 → 1).
 

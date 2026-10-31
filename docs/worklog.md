@@ -1,5 +1,12 @@
 # Ovocný souboj – deník
 
+## 2026-10-31 večer (Claude, design review 3 kola, push, živý test)
+Design-eye (taste lens, desktop + iPhone, oba hráči), 3 kola:
+- Kolo 1 (verdikt „skoro“, 15 nálezů): série a výsledek z pohledu druhého hráče (barvy čísel podle sedadla, „já“ vlevo i na kartě výsledku), ovoce místo fasetového low-poly hladké toon (hladké normály, 24×16, barvy po vrcholech, tmavší spodek jako tvar), kapky šťávy plochá 3–8 px kolečka bez odlesku a 8–14 na řez, plovoucí texty světlé s tmavým stínem a bez překryvu (`float()` hlídá HUD, jiné texty i banner), sázka čárkovaný razítkový rámeček bez náklonu a s mezerou, desktop výzva a přijetí jednosloupcově (480 px), setup s tlačítkem přes oba sloupce, KOPÍROVAT už neuříznuté, škála zaoblení 6/8/12, úvod přijetí ve Figtree, překlopení číslic 0,18 s, banner s min. šířkou, v menu už nevisí karambola pod visačkou. Překryv „+5“ a „Přesně!“ u karamboly opraven (`tests/float.cjs`).
+- Kolo 2 (verdikt „skoro“): plovoucí text vs. banner naschvalu, kiwi nečitelné (světlejší, tmavé skvrny), meloun v setupu seděl na hraně tlačítka (mezera 14 px), čipy sázek na iPhonu v jednom řádku.
+- Kolo 3: verdikt „profi indie hra“ (silné, bez blokujících nálezů). Drobnost: půlky ovoce bez obrysu, hned opraveno (světlý obrys i na půlkách). Zbývá: váha Figtree v Safari na skutečném iPhonu (headless WebKit kreslí tence, `document.fonts` hlásí 800).
+Testy lokálně: sim 9/9, duel 49/49, feel 8/8, float 6/6.
+
 ## 2026-10-31 (Claude, nová deska, přesný řez, měřič naschválu, tempo)
 Hotovo lokálně (NEPUSHNUTO):
 - Pozadí: pryč kopce, okénka, bedny, markýza, žárovky. Jedna tmavá dřevěná deska (canvas `#board`, kresba let, suky, zámky prken, viněta), jemné mizející skvrny šťávy (`#stains`). Ovoce má světlý obrys, bomba oranžový. Cedulky HUD bez provázků u horní hrany, visačka přibitá hřebíčkem. DESIGN.md přepsán.

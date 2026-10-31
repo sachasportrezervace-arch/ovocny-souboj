@@ -80,8 +80,8 @@ body.shake #gl { animation: shake .38s linear; }
 .sign.me { --c: var(--me); } .sign.opp { --c: var(--opp); }
 .cells { display: flex; gap: 3px; margin-top: 4px; }
 .cells b { display: grid; place-items: center; width: 26px; height: 34px; border-radius: 3px; background: #1A2420; font-family: var(--disp); font-weight: 400; font-size: 24px; color: var(--c); font-variant-numeric: tabular-nums; }
-.cells b.flip { animation: flip .26s ease-out; }
-@keyframes flip { 0% { transform: rotateX(80deg); } 100% { transform: rotateX(0); } }
+.cells b.flip { animation: flip .18s ease-out; }
+@keyframes flip { 0% { transform: rotateX(55deg); } 100% { transform: rotateX(0); } }
 .charge { height: 7px; margin-top: 5px; border-radius: 4px; background: rgba(255,255,255,.14); overflow: hidden; }
 .charge i { display: block; height: 100%; width: 0; border-radius: 4px; background: var(--c); transition: width .18s ease-out; }
 .charge.full i { animation: chargeFull .5s ease-in-out infinite alternate; }
@@ -90,13 +90,13 @@ body.shake #gl { animation: shake .38s linear; }
 @keyframes hit { 30% { box-shadow: 0 0 0 4px var(--c), 0 6px 14px rgba(0,0,0,.35); } }
 .sign .state { font-family: var(--chalkf); font-size: 15px; color: var(--chalk-dim); margin-top: 3px; min-height: 18px; }
 .sign .state:empty { display: none; }
-.clock { background: var(--linen); color: var(--ink); border-radius: 4px; padding: 5px 10px 6px; text-align: center; box-shadow: 0 6px 14px rgba(0,0,0,.35); margin-top: 6px; }
+.clock { background: var(--linen); color: var(--ink); border-radius: 6px; padding: 5px 10px 6px; text-align: center; box-shadow: 0 6px 14px rgba(0,0,0,.35); margin-top: 6px; }
 .clock .t { font-family: var(--disp); font-size: 26px; line-height: 1; font-variant-numeric: tabular-nums; }
 .clock .t.low { color: var(--tomato); }
 .clock .r { font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-soft); margin-top: 2px; white-space: nowrap; }
 .clock .ser { font-family: var(--chalkf); font-size: 16px; line-height: 1; margin-top: 3px; color: var(--ink-soft); white-space: nowrap; }
 .clock .ser b { font-family: var(--disp); font-weight: 400; font-size: 15px; }
-.clock .ser .m { color: #D36A1E; } .clock .ser .o { color: #1E9C83; }
+.clock .ser .x { color: #D36A1E; } .clock .ser .o { color: #1E9C83; }
 
 #net { position: fixed; left: 50%; bottom: calc(var(--floor-b) + 14px); transform: translateX(-50%); font-size: 13px; font-weight: 600; background: rgba(21,12,7,.85); padding: 6px 12px; border-radius: 99px; pointer-events: none; max-width: 92vw; text-align: center; }
 
@@ -105,19 +105,19 @@ body.shake #gl { animation: shake .38s linear; }
 #count span { animation: pop .9s cubic-bezier(.2,.9,.3,1) both; }
 #count .go { font-size: .5em; color: var(--bulb); }
 @keyframes pop { 0% { transform: scale(1.6); opacity: 0; } 25% { transform: scale(1); opacity: 1; } 80% { opacity: 1; } 100% { opacity: 0; transform: scale(.92); } }
-#banner { position: fixed; top: calc(var(--safe-t) + var(--top-h) + 82px); right: calc(10px + var(--safe-r)); max-width: min(78vw, 340px); background: var(--linen); color: var(--ink); border-radius: 4px; padding: 8px 12px 9px 14px;
+#banner { position: fixed; top: calc(var(--safe-t) + var(--top-h) + 82px); right: calc(10px + var(--safe-r)); max-width: min(78vw, 340px); background: var(--linen); color: var(--ink); border-radius: 6px; padding: 8px 12px 9px 14px; min-width: min(78vw, 300px);
   box-shadow: 0 8px 18px rgba(0,0,0,.35); pointer-events: none; transform: translateX(130%); transition: transform .35s cubic-bezier(.2,.9,.3,1.1); display: flex; gap: 10px; align-items: center; }
 #banner.on { transform: translateX(0); }
 #banner svg { flex: none; width: 34px; height: 34px; }
 #banner .txt { font-family: var(--chalkf); font-size: 21px; line-height: 1.05; }
 #banner .txt b { font-weight: 400; color: var(--tomato-deep); }
 #floats { position: fixed; left: 0; top: 0; width: 100%; height: var(--app-h); pointer-events: none; overflow: hidden; }
-.float { position: absolute; font-family: var(--disp); font-size: 22px; white-space: nowrap; transform: translate(-50%, -50%); text-shadow: 0 3px 0 rgba(0,0,0,.45); animation: rise 1.1s ease-out forwards; }
-.float small { display: block; font-family: var(--chalkf); font-size: 18px; text-align: center; }
-.float.bad { color: #FFB4A8; }
+.float { position: absolute; font-family: var(--disp); font-size: 22px; white-space: nowrap; transform: translate(-50%, -50%); color: var(--linen); text-shadow: 0 2px 0 rgba(21,12,7,.9), 0 0 10px rgba(21,12,7,.75); animation: rise 1.1s ease-out forwards; }
+.float small { display: block; font-family: var(--chalkf); font-size: 19px; text-align: center; color: #FFE9B8; }
+.float.bad { color: #FFC2B5; }
 .float.precise { font-size: 30px; color: #FFE08A; text-shadow: 0 3px 0 rgba(60,30,0,.7), 0 0 14px rgba(255,200,90,.55); animation-duration: 1.3s; }
 .float.precise small { color: #FFF4D6; font-size: 22px; }
-@keyframes rise { 0% { opacity: 0; transform: translate(-50%, -30%) scale(.8); } 15% { opacity: 1; transform: translate(-50%, -50%) scale(1.05); } 100% { opacity: 0; transform: translate(-50%, -140%) scale(1); } }
+@keyframes rise { 0% { opacity: 0; transform: translate(-50%, -30%) scale(.8); } 12% { opacity: 1; transform: translate(-50%, -50%) scale(1.05); } 65% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -120%) scale(1); } }
 .shot { position: absolute; width: 16px; height: 16px; border-radius: 50%; background: var(--me); box-shadow: 0 0 0 3px rgba(0,0,0,.3); transition: transform .55s cubic-bezier(.5,0,.6,1), opacity .55s; }
 
 /* ---------- panel: papírová visačka přibitá na desce ---------- */
@@ -127,7 +127,7 @@ body.shake #gl { animation: shake .38s linear; }
   overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; touch-action: pan-y; pointer-events: none; }
 #panel[hidden] { display: none; }
 #hud:not([hidden]) ~ #panel { padding-top: calc(var(--safe-t) + var(--top-h) + 90px); }
-.tag { pointer-events: auto; position: relative; flex: none; margin: auto; width: min(100%, 380px); background: var(--linen); color: var(--ink); border-radius: 10px; padding: 26px 20px 20px; touch-action: pan-y;
+.tag { pointer-events: auto; position: relative; flex: none; margin: auto; width: min(100%, 380px); background: var(--linen); color: var(--ink); border-radius: 12px; padding: 26px 20px 20px; touch-action: pan-y;
   box-shadow: 0 2px 0 var(--linen-shade), 0 18px 40px rgba(0,0,0,.45); transform: rotate(-1deg); animation: hang .7s cubic-bezier(.2,.9,.3,1.15) both; }
 .tag.still { animation: none; }
 .tag::before { content: ""; position: absolute; top: 9px; left: 50%; width: 12px; height: 12px; margin-left: -6px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #F6EBD0, #9C8B66 58%, #5A4D34); box-shadow: 0 2px 3px rgba(0,0,0,.5); }
@@ -137,12 +137,12 @@ body.shake #gl { animation: shake .38s linear; }
 .tag h1 { font-size: 34px; color: var(--tomato); }
 .tag h2 { font-size: 25px; }
 .tag p { margin: 0 0 12px; font-size: 16px; line-height: 1.4; color: var(--ink-soft); }
-.tag .chalk { font-family: var(--chalkf); font-size: 22px; line-height: 1.15; color: var(--ink); }
+.tag .chalk { font-size: 17px; line-height: 1.4; font-weight: 600; color: var(--ink); }
 .tag label, .tag .lab { display: block; font-size: 13px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: var(--ink-soft); margin: 12px 0 5px; }
 .tag input[type=text] { width: 100%; min-height: 46px; padding: 11px 12px; border: 2px solid var(--ink); border-radius: 6px; background: #FFFBF2; color: var(--ink); font-size: 17px; caret-color: var(--tomato); }
 .tag input::placeholder { color: #6E6557; }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.chips button { border: 2px solid var(--ink); background: transparent; border-radius: 99px; min-height: 44px; padding: 6px 13px; font-weight: 600; font-size: 14px; color: var(--ink); cursor: pointer; }
+.chips button { border: 2px solid var(--ink); background: transparent; border-radius: 99px; min-height: 44px; padding: 6px 10px; font-weight: 600; font-size: 14px; color: var(--ink); cursor: pointer; }
 .chips button[aria-pressed=true] { background: var(--ink); color: var(--linen); }
 .btn { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; margin-top: 16px; padding: 14px 16px 13px; min-height: 52px; border: 0; border-radius: 8px; background: var(--tomato); color: var(--linen);
   font-family: var(--disp); font-size: 19px; letter-spacing: .01em; cursor: pointer; box-shadow: 0 4px 0 var(--tomato-deep), 0 8px 16px rgba(0,0,0,.2); transition: transform .12s, box-shadow .12s; }
@@ -178,7 +178,7 @@ body.shake #gl { animation: shake .38s linear; }
 .vs .p.win .s { text-decoration: underline 4px; text-underline-offset: 6px; }
 .vs .p .st { font-size: 13px; font-weight: 600; color: var(--ink-soft); margin-top: 2px; }
 .vs .mid { font-family: var(--disp); font-size: 22px; color: var(--ink-soft); }
-.stake { margin-top: 10px; padding: 10px 12px; border: 2px solid var(--ink); border-radius: 6px; font-family: var(--chalkf); font-size: 22px; line-height: 1.1; transform: rotate(.6deg); }
+.stake { margin: 10px 0 12px; padding: 10px 12px; border: 2px dashed var(--tomato); border-radius: 6px; font-family: var(--chalkf); font-size: 22px; line-height: 1.1; color: var(--tomato-deep); }
 .small { font-size: 13px !important; }
 
 #toast { position: fixed; left: 50%; bottom: calc(var(--safe-b) + 70px); transform: translateX(-50%); background: var(--ink); color: var(--linen); padding: 10px 16px; border-radius: 8px; font-weight: 600; font-size: 15px; box-shadow: 0 8px 20px rgba(0,0,0,.4); max-width: 90vw; text-align: center; }
@@ -212,7 +212,7 @@ body[data-view="setup"] #iosHint:not([hidden]), body[data-view="intro"] #iosHint
 /* dva sloupce: desktop a telefon na šířku */
 @media (min-width: 1024px) and (min-height: 560px), (max-height: 520px) and (orientation: landscape) and (min-width: 640px) {
   .tag.wide { width: min(100%, 720px); }
-  .cols { grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); column-gap: 32px; grid-template-areas: "head intro" "form how" "form deco" "form cta"; }
+  .tag.wide .cols { grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); column-gap: 32px; grid-template-areas: "head intro" "form how" "form deco" "form cta"; }
   .a-head h1, .a-head h2 { margin-top: 0; }
   .a-intro { align-self: end; } .a-intro p { margin-bottom: 8px; }
   .a-cta { align-self: end; } .a-cta .btn:first-child { margin-top: 0; }
@@ -221,13 +221,13 @@ body[data-view="setup"] #iosHint:not([hidden]), body[data-view="intro"] #iosHint
 /* desktop: vlastní rozvržení, ne roztažený mobil */
 @media (min-width: 960px) and (min-height: 560px) {
   #hud { width: min(100%, 980px); margin: 0 auto; padding: 0 24px; gap: 24px; }
-  .sign { padding: 10px 18px 12px; border-width: 5px; border-radius: 8px; }
+  .sign { padding: 10px 18px 12px; border-width: 5px; }
   .sign .who { font-size: 30px; max-width: 18vw; gap: 9px; }
   .sign .who i { width: 12px; height: 12px; }
   .cells { gap: 5px; margin-top: 6px; }
   .cells b { width: 48px; height: 64px; font-size: 44px; border-radius: 4px; }
   .sign .state { font-size: 19px; min-height: 22px; margin-top: 5px; }
-  .clock { padding: 8px 20px 10px; margin-top: 12px; border-radius: 5px; min-width: 160px; }
+  .clock { padding: 8px 20px 10px; margin-top: 12px; min-width: 160px; }
   .clock .t { font-size: 44px; }
   .clock .r { font-size: 13px; margin-top: 4px; }
   .clock .ser { font-size: 21px; margin-top: 5px; } .clock .ser b { font-size: 19px; }
@@ -242,6 +242,12 @@ body[data-view="setup"] #iosHint:not([hidden]), body[data-view="intro"] #iosHint
   .tag { margin: 0; width: 480px; padding: 30px 28px 24px; }
   .tag h1 { font-size: 44px; } .tag h2 { font-size: 30px; }
   .tag p { font-size: 17px; }
+  /* výzva a přijetí mají málo obsahu: jeden sloupec na menší visačce; setup má tlačítko přes oba sloupce, ať vlevo nezůstane díra */
+  .tag.wide[data-view=share], .tag.wide[data-view=intro] { width: 480px; }
+  .tag[data-view=share] .cols, .tag[data-view=intro] .cols { grid-template-columns: minmax(0, 1fr); column-gap: 0; grid-template-areas: "head" "intro" "form" "cta" "how"; }
+  .tag[data-view=setup] .cols { grid-template-areas: "head intro" "form how" "form deco" "cta cta"; }
+  .tag[data-view=setup] .a-cta { align-self: stretch; margin-top: 14px; }
+  .row .btn { font-size: 17px; }
   #toast { bottom: calc(var(--safe-b) + 40px); }
   #sound, #fs { background: rgba(21,12,7,.72); border: 2px solid rgba(241,230,208,.35); }
   #sound:hover, #fs:hover { background: rgba(21,12,7,.92); }
