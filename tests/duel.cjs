@@ -102,10 +102,10 @@ async function bot(p, untilMs) {
   check("desktop: Fullscreen API funguje", fsTry);
 
   // 1) Mark zakládá výzvu s volbou délky
-  const chipsInfo = await A.evaluate(() => [...document.querySelectorAll("#lenChips button")].map(b => b.textContent.trim() + ":" + b.getAttribute("aria-pressed")));
-  check("setup: délka kola 1/2 minuty, výchozí 2", chipsInfo.join("|") === "1 minuta:false|2 minuty:true", chipsInfo.join("|"));
-  await A.click("#lenChips button:has-text('1 minuta')");
-  check("setup: chip délky přepnutý (aria-pressed)", (await A.getAttribute("#lenChips button:has-text('1 minuta')", "aria-pressed")) === "true" && (await A.getAttribute("#lenChips button:has-text('2 minuty')", "aria-pressed")) === "false");
+  const chipsInfo = await A.evaluate(() => [...document.querySelectorAll("#modeChips button")].map(b => b.textContent.trim() + ":" + b.getAttribute("aria-pressed")));
+  check("setup: módy 1 min / 2 min / Do 50 / 3 životy, výchozí 2 min", chipsInfo.join("|") === "1 min:false|2 min:true|Do 50:false|3 životy:false", chipsInfo.join("|"));
+  await A.click("#modeChips button[data-c=cas60]");
+  check("setup: chip délky přepnutý (aria-pressed)", (await A.getAttribute("#modeChips button[data-c=cas60]", "aria-pressed")) === "true" && (await A.getAttribute("#modeChips button[data-c=cas120]", "aria-pressed")) === "false");
   await A.fill("#fMe", "Mark"); await A.fill("#fOpp", "Radka");
   await A.click("#chips button:has-text('kafe')");
   await A.click("#bCreate");
@@ -135,7 +135,7 @@ async function bot(p, untilMs) {
   check("desktop: visačka vycentrovaná, nepřetéká přes bedny", Math.abs(tagBox.x + tagBox.width / 2 - 720) < 20 && tagBox.y + tagBox.height <= (await fitDesk(A)).crates, `střed ${Math.round(tagBox.x + tagBox.width / 2)} px`);
   // iPhone: výzva na vlastním zařízení pro screenshot
   const ctxB2 = await bB.newContext({ ...devices["iPhone 13"] }); await ctxB2.addInitScript(SHARE_STUB); const B2 = await ctxB2.newPage();
-  await B2.goto(BASE); await B2.fill("#fMe", "Mark"); await B2.fill("#fOpp", "Radka"); await B2.click("#lenChips button:has-text('1 minuta')"); await B2.click("#bCreate");
+  await B2.goto(BASE); await B2.fill("#fMe", "Mark"); await B2.fill("#fOpp", "Radka"); await B2.click("#modeChips button[data-c=cas60]"); await B2.click("#bCreate");
   await B2.waitForSelector("#msg", { timeout: 15000 });
   check("výzva (běžný režim): zpráva uvádí skutečnou délku kola 1 minutu", /jedno kolo na 1 minutu\./.test(await B2.innerText("#msg")));
   await shot(B2, "iphone-2-vyzva");
@@ -159,7 +159,7 @@ async function bot(p, untilMs) {
   await A.locator("#bLobby").click({ timeout: 3000 }).catch(() => {}); // host se po přijetí přesune do lobby i sám
   await A.waitForSelector("#bReady:not([disabled])", { timeout: 15000 });
   check("lobby: oba u stánku", true);
-  check("lobby: v HUD čas m:ss a číslo souboje", (await A.locator("#timer").innerText()) === "0:15" && (await A.locator("#roundLabel").innerText()) .toUpperCase() === "SOUBOJ Č. 1", await A.locator("#timer").innerText());
+  check("lobby: v HUD čas m:ss, mód a číslo souboje", (await A.locator("#timer").innerText()) === "0:15" && (await A.locator("#roundLabel").innerText()).toUpperCase() === "NA ČAS" && /souboj č\. 1/i.test(await A.locator("#ser").innerText()), await A.locator("#timer").innerText());
   check("HUD: žádné puntíky kol", (await A.locator("#dots").count()) === 0);
 
   let skews = [], latencies = [], sentTotal = 0, gotTotal = 0;
@@ -219,7 +219,7 @@ async function bot(p, untilMs) {
   await Promise.all([waitPhase(A, ["count", "play"]), waitPhase(B, ["count", "play"])]);
   const [ra, rb] = await Promise.all([st(A), st(B)]);
   check("odveta: obě strany startují s K = 21", ra.K === 21 && rb.K === 21, `K ${ra.K}/${rb.K}`);
-  check("odveta: HUD ukazuje Souboj č. 2", (await A.locator("#roundLabel").innerText()).toUpperCase() === "SOUBOJ Č. 2" && (await B.locator("#roundLabel").innerText()).toUpperCase() === "SOUBOJ Č. 2");
+  check("odveta: HUD ukazuje mód a sérii", (await A.locator("#roundLabel").innerText()).toUpperCase() === "NA ČAS" && /série \d : \d/.test(await B.locator("#ser").innerText()), await B.locator("#ser").innerText());
   await Promise.all([waitPhase(A, "play", 8000), waitPhase(B, "play", 8000)]);
   await Promise.all([bot(A, 20000), bot(B, 20000)]);
   await Promise.all([waitPhase(A, "result", 20000), waitPhase(B, "result", 20000)]);

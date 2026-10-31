@@ -59,4 +59,31 @@ t("série přes odvety", () => {
   const hx = { 11: 9, 21: 1, 31: 5 }, ho = { 11: 1, 21: 9, 31: 5, 41: 3 };
   assert.deepEqual(S.series(hx, ho), [1, 1]);
 });
+t("módy: závod = kdo dřív v cíli, tři životy = kdo vydrží déle, jinak skóre", () => {
+  assert.equal(S.winnerOf("cas", 10, 12), "o");
+  assert.equal(S.winnerOf("zavod", 30, 50, undefined, 41000), "o");          // jen o v cíli
+  assert.equal(S.winnerOf("zavod", 52, 50, 40100, 40300), "x");              // oba v cíli v okně zpoždění: rychlejší čas
+  assert.equal(S.winnerOf("zavod", 20, 31), "o");                            // cíl nikdo nedal: skóre
+  assert.equal(S.winnerOf("zivoty", 80, 20, 30000, 45000), "o");             // o vydržel déle, i když má méně bodů
+  assert.equal(S.winnerOf("zivoty", 10, 40, undefined, 61000), "x");         // x přežil (undefined = celé kolo)
+  assert.equal(S.winnerOf("zivoty", 33, 33), null);                          // oba přežili, stejné skóre = remíza
+  assert.equal(S.modeOf("nesmysl"), "cas"); assert.equal(S.lengthFor("zavod"), S.RACE_MS); assert.equal(S.lengthFor("cas", 60000), 60000);
+});
+t("série a souboj podle módu odehraného kola (mh), staré souboje bez mh = na čas", () => {
+  const hx = { 11: 40, 21: 30, 31: 9 }, ho = { 11: 35, 21: 50, 31: 60 };
+  const ex = { mh: { 21: "zavod", 31: "zivoty" }, fx: { 31: 70000 }, fo: { 21: 38000, 31: 12000 } };
+  assert.equal(S.matchState(hx, ho, 1, ex).winner, "x");
+  const m2 = S.matchState(hx, ho, 2, ex); assert.equal(m2.md, "zavod"); assert.equal(m2.winner, "o");
+  const m3 = S.matchState(hx, ho, 3, ex); assert.equal(m3.md, "zivoty"); assert.equal(m3.winner, "x");
+  assert.deepEqual(S.series(hx, ho, ex), [2, 1]);
+  assert.deepEqual(S.series(hx, ho), [1, 2]);
+});
+t("rozpis závodu (90 s) a tří životů (120 s): cíl je na dosah zhruba v půlce, tempo roste", () => {
+  for (const sd of [1, 7, 99]) {
+    const z = S.schedule(sd, S.RACE_MS), first45 = z.filter(i => i.t < 45000 && i.kind !== "bomba");
+    assert.ok(first45.length >= S.TARGET * 0.8 && first45.length <= S.TARGET * 1.6, `závod: kusů do 45 s ${first45.length}`);
+    const l = S.schedule(sd, S.LIFE_MS), a = l.filter(i => i.t < 30000).length, b = l.filter(i => i.t >= 90000).length;
+    assert.ok(b >= a * 1.8, `tři životy: zrychlení ${a} -> ${b}`);
+  }
+});
 console.log(n + "/" + n + " PASS");

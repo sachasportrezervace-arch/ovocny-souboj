@@ -25,6 +25,15 @@ Hladké koule 24×16 s hladkými normálami, barvami po vrcholech a toon rampou 
 (slupka + stopka + list sloučené), řez = polokoule + disk s texturou dužiny 128 px. Kapky, jiskry a prstenec přesného řezu v jednom
 `Points` (pool 320, při omezeném pohybu 160). Max ~27 draw calls při plné obrazovce. Adaptivní pixel ratio (2 → 1,5 → 1).
 
+## Módy (`docs/mody.md`)
+- Výběr na zakládací visačce: jedna řada čipů `1 min · 2 min · Do 50 · 3 životy` a pod ní jedna věta s pravidlem (`.modeline`).
+  Na výsledku stejná řada „Odveta v módu“, kterou může přepnout kdokoli z dvojice. Během hry žádné hlášky navíc.
+- HUD: hodiny ukazují mód místo „Souboj č.“ (číslo souboje je v řádku pod, dokud není série). Na čas odpočítává, závod
+  a tři životy počítají nahoru. Životy jsou tři tečky v barvě hráče pod skóre (ztracený život = prázdný kroužek s krátkým
+  rajčatovým pulzem), jen v módu tři životy, na obou cedulkách. Propadlý kus ukáže „×“ u spodního okraje.
+- Výsledek: ve třech životech je velké číslo výdrž (m:ss), body jsou pod ním; v závodě pod skóre „v cíli za 0:41“.
+- Konec kola: „V cíli!“ tomu, kdo dal cíl, jinak „Konec!“.
+
 ## Twist a pocit ze hry
 - **Přesně!** Tah, jehož přímka projde ve vnitřní čtvrtině poloměru ovoce (screen space, `cutTest`), dá +2 body, prstenec jisker,
   vyšší „ting“ a krátké zavibrování. Neplatí pro bomby a led.

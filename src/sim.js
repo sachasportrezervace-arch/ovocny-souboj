@@ -17,6 +17,29 @@ export const FIRE_ORDER = ["smouha", "mraz", "bomba"];
 export const PRECISE_R = 0.25;   // přesný řez: tah projde ve vnitřní čtvrtině poloměru ovoce (počítá se na obrazovce v main.js)
 export const SAB_TYPES = ["bomba", "smouha", "mraz"];   // naschvály bez textů: signalizuje je jen ikona u soupeřova skóre a pulz měřiče
 
+// Módy (docs/mody.md): na čas (vyšší skóre), závod do cíle (kdo dřív), tři životy (kdo vydrží déle).
+// Rozhodují vlastní hodiny kola každého hráče (f = ms od startu), ne pořadí zápisů na server, takže zpoždění ~0,5 s nevadí.
+export const MODES = ["cas", "zavod", "zivoty"];
+export const TARGET = 50;          // závod: cíl v bodech
+export const RACE_MS = 90000;      // závod: strop, když cíl nikdo nedá (pak vyšší skóre)
+export const LIVES = 3;            // tři životy: propadlé ovoce nebo seknutá bomba bere život
+export const LIFE_MS = 120000;     // tři životy: strop, kdo vydrží celý, má výdrž = strop
+export const modeOf = md => MODES.includes(md) ? md : "cas";
+export const lengthFor = (md, rl) => md === "zavod" ? RACE_MS : md === "zivoty" ? LIFE_MS : (rl || ROUND_MS);
+// vítěz jednoho kola: x, o = skóre, fx, fo = čas cíle / smrti (undefined = nedal cíl / přežil)
+export function winnerOf(md, x, o, fx, fo) {
+  if (md === "zavod" && (fx != null || fo != null)) {
+    if (fo == null) return "x";
+    if (fx == null) return "o";
+    if (fx !== fo) return fx < fo ? "x" : "o";
+  }
+  if (md === "zivoty") {
+    const a = fx == null ? Infinity : fx, b = fo == null ? Infinity : fo;
+    if (a !== b) return a > b ? "x" : "o";
+  }
+  return x > o ? "x" : o > x ? "o" : null;
+}
+
 export function rng(seed) {
   let a = seed >>> 0;
   return () => {
@@ -102,24 +125,26 @@ export const key = (m, r) => m * 10 + r;
 export const mOf = k => Math.floor(k / 10);
 export const rOf = k => k % 10;
 
-// stav souboje m z historií skóre obou hráčů ({klíč: skóre}): jedno kolo, vyšší skóre vyhrává, stejné = remíza
-export function matchState(hx, ho, m) {
+// stav souboje m z historií skóre obou hráčů ({klíč: skóre}): jedno kolo, vítěz podle módu, stejné = remíza
+// ex = { mh: {klíč: mód}, fx, fo: {klíč: ms cíle/smrti} }; bez ex (staré souboje) = na čas
+export function matchState(hx, ho, m, ex = {}) {
   const k = key(m, 1), rounds = [];
   const over = k in (hx || {}) && k in (ho || {});
+  const md = modeOf((ex.mh || {})[k]);
   let winner = null;
   if (over) {
-    const x = hx[k], o = ho[k];
-    winner = x > o ? "x" : o > x ? "o" : null;
-    rounds.push({ r: 1, k, x, o, w: winner });
+    const x = hx[k], o = ho[k], fx = (ex.fx || {})[k], fo = (ex.fo || {})[k];
+    winner = winnerOf(md, x, o, fx, fo);
+    rounds.push({ r: 1, k, x, o, fx, fo, w: winner });
   }
-  return { rounds, wx: winner === "x" ? 1 : 0, wo: winner === "o" ? 1 : 0, over, winner, nextK: over ? key(m + 1, 1) : k };
+  return { rounds, md, wx: winner === "x" ? 1 : 0, wo: winner === "o" ? 1 : 0, over, winner, nextK: over ? key(m + 1, 1) : k };
 }
 
-export function series(hx, ho) {
+export function series(hx, ho, ex) {
   const ms = new Set(Object.keys(hx || {}).map(k => mOf(+k)));
   let x = 0, o = 0;
   for (const m of ms) {
-    const s = matchState(hx, ho, m);
+    const s = matchState(hx, ho, m, ex);
     if (s.over && s.winner === "x") x++;
     if (s.over && s.winner === "o") o++;
   }
