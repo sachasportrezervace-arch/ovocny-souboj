@@ -187,7 +187,7 @@ function clearBombs(list, ms, endBy = Infinity) {
     if (b.kind !== "bomba" || b.from || drop.has(b)) continue;
     const t0 = b.t, others = list.filter(o => o !== b && !drop.has(o) && Math.abs(o.t - t0) < 7000);
     let best = null;
-    outer: for (const du of [0, 0.22, -0.22, 0.44, -0.44, 0.66, -0.66]) for (let k = 0; k <= 20; k++) {
+    outer: for (const du of [0, 0.22, -0.22, 0.44, -0.44, 0.66, -0.66, 0.88, -0.88, 1.1, -1.1]) for (let k = 0; k <= 20; k++) {
       const t = t0 + k * 110;
       if (t > Math.max(lim, t0) || (k && t + flightTime(b) * 1000 > endBy)) break;   // ve finále bomba nedoletí za jeho začátek
       const c = { ...b, t, u: Math.max(-0.85, Math.min(0.85, b.u + du)) };
@@ -202,6 +202,15 @@ function clearBombs(list, ms, endBy = Infinity) {
     for (const o of best.bad) { drop.add(o); if (o.row != null) rows.set(o.row, rows.get(o.row) - 1); }
   }
   return renumber(list.filter(o => !drop.has(o)));
+}
+// Kus nesmí odplout z obrazovky bokem, dokud je vidět (ve třech životech by to byl život za nic): vodorovný posun vu se zkrátí tak,
+// aby střed v době, kdy kus padá pod spodní okraj (y = -9,5), ležel nejdál v KEEP_X (kus má poloměr ~0,16, takže je celý na ploše).
+export const KEEP_X = 0.84;
+export function keepIn(o) {
+  o.u = Math.max(-KEEP_X, Math.min(KEEP_X, o.u));
+  const g = G * (o.gm || 1), v = vy0(o.apex, o.gm || 1), tv = (v + Math.sqrt(Math.max(0, v * v - 5 * g))) / g;
+  const x = o.u + o.vu * tv;
+  if (Math.abs(x) > KEEP_X) o.vu = (Math.sign(x) * KEEP_X - o.u) / tv;
 }
 // Překryv dvou kusů ovoce vyhozených skoro naráz (do TOGETHER_MS): když by se letem držely středy blíž než SPREAD × součet poloměrů
 // (jeden půlkou schová druhý) déle než OVERLAP_MS, pozdější kus se posune do vedlejší dráhy (po 0,12, nejvýš 5×). Kusy vyhozené
@@ -218,6 +227,7 @@ export function overlapMs(a, b, k = SPREAD, fh = NARROW_HALF_W) {
 }
 function spreadOut(list) {
   list.sort((a, b) => a.t - b.t || a.id - b.id);
+  for (const o of list) if (!o.from && o.kind !== "bomba") keepIn(o);   // bomby ne: na kraji obrazovky nikomu nevadí a rozpis je pak volnější
   for (let i = 0; i < list.length; i++) {
     const b = list[i];
     if (b.kind === "bomba" || b.from) continue;
@@ -229,7 +239,7 @@ function spreadOut(list) {
       let u = b.u + dir * 0.12;
       if (Math.abs(u) > 0.88) u = a.u - dir * 0.12;   // u kraje radši na druhou stranu
       u = Math.max(-0.88, Math.min(0.88, u));
-      b.u = u;
+      b.u = u; keepIn(b);
     }
   }
 }

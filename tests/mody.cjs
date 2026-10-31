@@ -23,8 +23,8 @@ async function botStep(p, vp) {
   const pick = t.filter(o => o.kind !== "bomba" && bombs.every(b => Math.hypot(b.x - o.x, b.y - o.y) > b.r + 70)).sort((a, b) => a.x - b.x);
   if (!pick.length) return;
   pick.splice(6);   // celá řada (zvláštnost kola „řady“ má 5–6 kusů)
-  const pts = [];
-  for (const f of pick) { const off = (Math.random() - 0.5) * f.r * 1.2; pts.push([f.x - f.r * 1.4, f.y + off - 4], [f.x + f.r * 1.4, f.y + off + 4]); if (f.ice) pts.push([f.x - f.r * 1.4, f.y + off + 8], [f.x + f.r * 1.4, f.y + off - 8]); }
+  const pts = [], cx = x => Math.max(4, Math.min(vp.width - 4, x));   // prst nezačne ani nekončí mimo displej (kus u kraje se sekne od okraje dovnitř)
+  for (const f of pick) { const off = (Math.random() - 0.5) * f.r * 1.2; pts.push([cx(f.x - f.r * 1.4), f.y + off - 4], [cx(f.x + f.r * 1.4), f.y + off + 4]); if (f.ice) pts.push([cx(f.x - f.r * 1.4), f.y + off + 8], [cx(f.x + f.r * 1.4), f.y + off - 8]); }
   await p.mouse.move(pts[0][0], pts[0][1]); await p.mouse.down();
   for (const [x, y] of pts.slice(1)) await p.mouse.move(x, y, { steps: 3 });
   await p.mouse.up();
@@ -44,7 +44,9 @@ async function play(p, untilMs, shotAt, shotName) {
 (async () => {
   const bA = await chromium.launch(), bB = await webkit.launch();
   const A = await (await bA.newContext({ viewport: { width: 1440, height: 900 } })).newPage();
-  const B = await (await bB.newContext({ ...devices["iPhone 13"] })).newPage();
+  // deviceScaleFactor 1: headless WebKit bez GPU kreslí hru na @3× jen ~6 snímků/s (změřeno, stejně i starší verze), bot by viděl zastaralé polohy a
+  // hra by neodpovídala skutečnému telefonu (60 snímků/s); na @1× je to ~50. Rozlišení displeje na chování hry nemá vliv (viewport 390×664 zůstává).
+  const B = await (await bB.newContext({ ...devices["iPhone 13"], deviceScaleFactor: 1 })).newPage();
   const errs = [];
   for (const [n, p] of [["A", A], ["B", B]]) { p.on("pageerror", e => errs.push(n + ": " + e.message)); p.on("console", m => m.type() === "error" && errs.push(n + " console: " + m.text().slice(0, 160))); }
 

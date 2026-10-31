@@ -181,4 +181,27 @@ t("čepel podle výher v sérii", () => {
   assert.deepEqual([0, 1, 2, 3, 4, 9].map(S.bladeTier), [0, 1, 2, 3, 4, 4]);
   assert.equal(S.BLADES.length, 5);
 });
+t("ovoce neodplouvá z obrazovky bokem (ve třech životech by to byl život za nic) ve všech módech a modifikátorech", () => {
+  let n = 0, worst = 0;
+  for (const [md, ms] of [["zivoty", S.LIFE_MS], ["cas", 60000], ["cas", 30000], ["zavod", S.RACE_MS]]) for (let i = 1; i <= 36; i++) {
+    const sd = Math.imul(i, 2654435761) >>> 0;
+    for (const it of S.roundSchedule(sd, ms, md)) {
+      if (!S.FRUITS.includes(it.kind) && it.kind !== "zlate") continue;
+      n++;
+      for (let dt = 0; dt < S.flightTime(it); dt += 0.04) { const p = S.posAt(it, dt); if (p.y < -9.5 && dt > 0.5) break; if (p.y > -9.5) worst = Math.max(worst, Math.abs(p.x)); }
+    }
+  }
+  assert.ok(n > 1500, "dost vzorků " + n);
+  assert.ok(worst <= S.KEEP_X + 0.005, `nejdál od středu |x| = ${worst.toFixed(3)} (limit ${S.KEEP_X})`);
+});
+t("ve třech životech je prvních 15 s kola dosažitelných: každý kus je aspoň 0,9 s na ploše (y -6…7, |x| do KEEP_X)", () => {
+  for (let i = 1; i <= 36; i++) {
+    const sd = Math.imul(i, 40503) >>> 0;
+    for (const it of S.roundSchedule(sd, S.LIFE_MS, "zivoty").filter(x => x.t < 15000 && S.FRUITS.includes(x.kind))) {
+      let vis = 0;
+      for (let dt = 0; dt < S.flightTime(it); dt += 0.04) { const p = S.posAt(it, dt); if (p.y > -6 && p.y < 7 && Math.abs(p.x) <= S.KEEP_X + 0.01) vis += 0.04; }
+      assert.ok(vis >= 0.9, `kus ${it.kind} v ${it.t} ms (semínko ${sd}) je ve viditelném okně jen ${vis.toFixed(2)} s`);
+    }
+  }
+});
 console.log(n + "/" + n + " PASS");
