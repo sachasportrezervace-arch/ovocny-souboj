@@ -1,5 +1,13 @@
 # Ovocný souboj – deník
 
+## 2026-10-31 večer (Claude, módy + oprava „vyzývá sama sebe“, nasazeno)
+- Hotovo, nasazeno a ověřeno živě:
+  - `5645252`: oprava výzvy. Výzvu nejde přijmout pod jménem vyzyvatele, na intru je „Jsem {vyzyvatel}“ a setup nepustí stejná jména. Příčinu NEOVĚŘENO, nejpravděpodobnější je vlastní výzva otevřená v jiném úložišti.
+  - `b131589`: módy Na čas / Do 50 bodů / Tři životy (`docs/mody.md`) a design review ve 2 kolech s verdiktem „profi indie hra“.
+- Živě (Chromium desktop + WebKit iPhone 13): mody 21/21, duel 49/49 (skew 170 ms), vyzva-b 26/26. Lokálně navíc sim 12/12.
+- Dál: Mark a Radka vyzkouší tempo tří životů a cíl 50 na skutečných telefonech (`Sim.TARGET`, `Sim.LIFE_MS`). Na iPhonu na šířku se setup scrolluje o ~10 px. `viewWatch` má „Jsem {zakladatel}“ jako hlavní tlačítko, takže se dá omylem převzít cizí sedadlo.
+- Ostatní hry (Kafíčka, šogi, Ježkomet, Psaníčko) už mají pojistku `introMine`, jména se tam prohodit nemůžou (jen čtení kódu).
+
 ## 2026-10-31 (Claude, design review módů)
 Design-eye proti „profi indie hra, plochý vektor, minimální HUD, žádné hlášky přes hru“ (desktop 1440×900 + WebKit iPhone 13, oba hráči).
 - Kolo 1 (verdikt „skoro“): (1) HIGH výsledek tří životů ukazoval u vítěze i poraženého stejné „0:04 : 0:04“, vítěz nečitelný (přeživšímu končí kolo smrtí soupeře) → u přeživšího „+“ (`lvOf`/`big` ve `viewResult`). (2) MED čipy módu vypadaly stejně jako čipy sázek pod nimi → mód je spojený přepínač přes celou šířku (`.chips.seg`, setup i „Odveta v módu“, na výsledku už nezůstává prázdný pruh vpravo). (3) MED „×“ po propadlém kuse byl drobný šedý Figtree → Bungee 52 px se stínem jako ostatní plovoucí texty. (4) LOW pravidlo v čekárně bylo nejmenší text na visačce → u `h2` 17 px v inkoustu. (5) LOW tečky životů 10 → 12 px, pulz ztráty života jemnější (scale 1,55, ne 1,9, nepřekrývá sousední tečku).
