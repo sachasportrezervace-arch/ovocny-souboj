@@ -2,6 +2,12 @@
 
 PŘEVZATO 31. 10. – dodělává session na účtu P, jiná session sem nepíše.
 
+## 2026-10-31 noc – NASAZENO sólo 0fbf02e (Claude, účet P)
+- Push `681ddd9..0fbf02e`, Pages servírují HEAD (md5 main.js).
+- Lokálně na finálním kódu: sim 25/25, duel 49/49, mody 21/21, solo 43/43, vyzva-b 26/26 (2. běh; 1. běh 25/26).
+- Živě: `node tests/solo.cjs <URL>` exit 0, 43/43. `node tests/vyzva-b.cjs <URL>` exit 1, 25/26 – jediný FAIL „bez chyb v konzoli“: WebKit hlásí „access control checks“ u mantledb dotazů místnosti, kterou B právě opustil přes `B.goto` (test ř. 69/104). Jde o utnuté rozběhnuté požadavky při navigaci, CORS hlavičky mantledb jsou v pořádku (ověřeno curl: ACAO *). Hra funguje (zbylých 25 kontrol včetně synchronizace prošlo).
+- Dál (volitelné): v `tests/vyzva-b.cjs` ignorovat konzolové chyby utnutých požadavků po `goto`; ověřit na skutečném iPhonu; landscape a reduced motion.
+
 ## 2026-10-31 večer (Claude, subagent: sólo režim „Zkusit sám“)
 - **Hotovo (lokálně, NEPUSHNUTO):** tlačítko „Zkusit sám“ na zakládací visačce (desktop vedle „Připravit výzvu“, mobil pod ním) a adresa `#solo`; lobby „Trénink proti Kuchtíkovi“ s výběrem módu; bot Kuchtík v novém `src/bot.js` (stejný rozpis kola jako hráč, tedy módy, zvláštnosti, desky i finále jako v ostré hře; míří na 50–68 % kusů, combo, měřič, naschvály oběma směry, ve třech životech chybuje s tempem, mírné dorovnání obtížnosti); na výsledku „Znovu“ + „Vyzvat soupeře“ (návrat na visačku, adresa bez `#solo`), nadpis „Vyhráváš!“ / „Vyhrává Kuchtík“, bez „chce odvetu“, bez čepele a sdílení; v hodinách nenápadné „trénink“ místo série.
 - **Lokální:** `room.solo` (žádná místnost, `pollPlan` → `null`, `commit()` slučuje metadata v paměti, `localWriter`); do localStorage nejde `ovs-seat/wins/seen-*`; nic do mantledb. Pojistka `introMine` a výzva pro dva nedotčeny (změny v main.js jsou za `room.solo`).
