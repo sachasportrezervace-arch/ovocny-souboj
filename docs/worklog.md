@@ -2,6 +2,11 @@
 
 PŘEVZATO 31. 10. – dodělává session na účtu P, jiná session sem nepíše.
 
+## 2026-10-31 noc – NASAZENO napojení na Hernu 2ff83f2 (Claude, účet P)
+- Push `4bff4f9..2ff83f2`, Pages = HEAD (md5 main.js).
+- Živě: `node tests/herna.cjs <URL>` exit 0, 32/32 (1. běh 31/32: po reloadu zakladatele přišel `stav konec` až po kontrole – časování, ne chyba protokolu) · `solo.cjs` exit 0, 43/43 · `vyzva-b.cjs` exit 0, 26/26.
+- Herně posláno: protokol v1, parametry a dokument mantledb. NEOVĚŘENO: skutečná Herna ve dvou prohlížečích, skutečný iPhone.
+
 ## 2026-10-31 noc – napojení na Hernu, protokol v1 (Claude, subagent; lokálně, NEPUSHNUTO)
 - **Hotovo:** `<meta name="herna-protokol" content="1">`; `#herna=1&m&r&seat&names&zaklada` přeskočí výzvu i setup (zakladatel `zaklada=1` založí dokument `ovocny-souboj-<r>/hra` se jmény, sedí na x; druhý `zaklada=0` ukazuje „Čeká se, až hra naskočí…“, polluje a sedne si na volné místo; reload sedne podle `meta.hx` = sedadlo Herny, které drží x). Jména: `seat=s` hraje za `names[s]`. Skryto: sdílení, „Zkusit sám“, „Poslat odkaz“, „Poslat výsledek do chatu“, tlačítko celé obrazovky a nápověda k ploše. Předsíň „Můžete hrát“ má volbu módu první partie a „Jak se hraje“ (úvodní obrazovka se přeskakuje). Na výsledku je vedle „Odveta“ sekundární „Jiná hra“.
 - **Zprávy rodiči:** `pripraveno` (po načtení), `stav` ceka/hraje/konec (ceka = předsíň, čekání na soupeře; hraje = odpočet, kolo, čekání na dohrání soupeře; konec = výsledek), `vysledek` `{partie: "<r>:<n>", vitez: sedadlo Herny | null}` jednou na partii (partie = souboj `Sim.mOf(go)`, i odveta; remíza = null), `jina-hra`. Bez platného `herna=1` (neplatné `r`, chybějící `seat`) se hra chová jako dřív; zprávy jdou jen při `window.parent !== window`.
