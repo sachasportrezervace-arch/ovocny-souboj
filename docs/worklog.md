@@ -2,6 +2,13 @@
 
 PŘEVZATO 31. 10. – dodělává session na účtu P, jiná session sem nepíše.
 
+## 2026-10-31 noc – napojení na Hernu, protokol v1 (Claude, subagent; lokálně, NEPUSHNUTO)
+- **Hotovo:** `<meta name="herna-protokol" content="1">`; `#herna=1&m&r&seat&names&zaklada` přeskočí výzvu i setup (zakladatel `zaklada=1` založí dokument `ovocny-souboj-<r>/hra` se jmény, sedí na x; druhý `zaklada=0` ukazuje „Čeká se, až hra naskočí…“, polluje a sedne si na volné místo; reload sedne podle `meta.hx` = sedadlo Herny, které drží x). Jména: `seat=s` hraje za `names[s]`. Skryto: sdílení, „Zkusit sám“, „Poslat odkaz“, „Poslat výsledek do chatu“, tlačítko celé obrazovky a nápověda k ploše. Předsíň „Můžete hrát“ má volbu módu první partie a „Jak se hraje“ (úvodní obrazovka se přeskakuje). Na výsledku je vedle „Odveta“ sekundární „Jiná hra“.
+- **Zprávy rodiči:** `pripraveno` (po načtení), `stav` ceka/hraje/konec (ceka = předsíň, čekání na soupeře; hraje = odpočet, kolo, čekání na dohrání soupeře; konec = výsledek), `vysledek` `{partie: "<r>:<n>", vitez: sedadlo Herny | null}` jednou na partii (partie = souboj `Sim.mOf(go)`, i odveta; remíza = null), `jina-hra`. Bez platného `herna=1` (neplatné `r`, chybějící `seat`) se hra chová jako dřív; zprávy jdou jen při `window.parent !== window`.
+- **Ověřeno (port 8801):** `node tests/herna.cjs http://127.0.0.1:8801/` exit 0, 32/32 (Chromium desktop 1440×900 + WebKit iPhone 13 @1×, hra v iframe rodiče se lištou 48 px; 3 partie včetně remízy, seat=1 zakládá, diakritika ve jménech, reload, jina-hra, bez herna=1) · `sim.test.mjs` exit 0, 25/25 · `vyzva-b.cjs` exit 0, 26/26 · `solo.cjs` exit 0, 43/43 · `duel.cjs` 49/49 exit 0 (1. a 2. běh jeden náhodný FAIL bota: 0 naschvál, 0 přesných řezů; 3. běh čistý) · `mody.cjs` 21/21 exit 0 (1. běh 19/20: zpoždění sítě 3,1 s u konce 3 životů; 2. běh čistý).
+- **Design-eye (1 kolo, rendery desktop + iPhone):** „ano“, bez blokujících nálezů.
+- **Zbývá / NEOVĚŘENO:** push dělá hlavní session; živý test v Herně (dva prohlížeče, skutečná Herna) a `node tests/herna.cjs <Pages URL>` po nasazení; skutečný iPhone; chování při současném `zaklada=1` u obou hráčů (protokol to nepředpokládá); Herna sama (potvrzení při `hraje`) jen z její strany.
+
 ## 2026-10-31 noc – NASAZENO sólo 0fbf02e (Claude, účet P)
 - Push `681ddd9..0fbf02e`, Pages servírují HEAD (md5 main.js).
 - Lokálně na finálním kódu: sim 25/25, duel 49/49, mody 21/21, solo 43/43, vyzva-b 26/26 (2. běh; 1. běh 25/26).

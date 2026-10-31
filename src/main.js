@@ -15,6 +15,21 @@ const other = s => s === "x" ? "o" : "x";
 const clampName = s => (s || "").trim().replace(/\s+/g, " ").slice(0, 18);
 const sameName = (a, b) => !!a && !!b && a.toLocaleLowerCase("cs") === b.toLocaleLowerCase("cs");
 
+// ---------- Herna: místnost, ve které se hry střídají (protokol react-apps/HERNA-PROTOKOL.md, verze 1) ----------
+// #herna=1&m=…&r=<místnost hry>&seat=0|1&names=A,B&zaklada=0|1 přeskočí výzvu i setup: kdo hru vybral (zaklada=1) založí dokument rovnou
+// se jmény, druhý si k němu sedne sám. Jména a sedadla ručí Herna (hráč se seat=s hraje za names[s]). Bez platného herna=1 je herna null
+// a hra se chová jako dřív.
+function parseHerna() {
+  const h = {};
+  for (const kv of location.hash.slice(1).split("&")) { const i = kv.indexOf("="); if (i > 0) h[kv.slice(0, i)] = kv.slice(i + 1); }
+  if (h.herna !== "1" || !/^[0-9a-z]{6,16}$/.test(h.r || "") || (h.seat !== "0" && h.seat !== "1")) return null;
+  const dec = s => { try { return decodeURIComponent(s); } catch { return s; } };
+  const nm = (h.names || "").split(",").map(s => clampName(dec(s)).slice(0, 16));   // čárku ve jménu rozděluje až po dekódování, proto ruční rozbor
+  return { r: h.r, hs: +h.seat, zaklada: h.zaklada === "1", names: [nm[0] || "Hráč 1", nm[1] || "Hráč 2"] };
+}
+let herna = parseHerna();
+const doHerny = z => { if (herna && window.parent !== window) { try { window.parent.postMessage({ herna: 1, ...z }, "*"); } catch {} } };
+
 // ---------- 3D a plátno čepele ----------
 const scene = createScene($("gl"), { reduced });
 const blade = $("blade"), bctx = blade.getContext("2d");
@@ -257,7 +272,7 @@ const platform = (() => {
   const isFs = () => !!(document.fullscreenElement || document.webkitFullscreenElement);
   const svg = on => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">${on ? '<path d="M9 4v4a1 1 0 0 1-1 1H4M15 4v4a1 1 0 0 0 1 1h4M9 20v-4a1 1 0 0 0-1-1H4M15 20v-4a1 1 0 0 1 1-1h4"/>' : '<path d="M4 9V5a1 1 0 0 1 1-1h4M20 9V5a1 1 0 0 0-1-1h-4M4 15v4a1 1 0 0 0 1 1h4M20 15v4a1 1 0 0 1-1 1h-4"/>'}</svg>`;
   const paint = () => { btn.innerHTML = svg(isFs()); btn.setAttribute("aria-label", isFs() ? "Ukončit celou obrazovku" : "Celá obrazovka"); };
-  if (platform.canFs && !platform.standalone) {
+  if (platform.canFs && !platform.standalone && !herna) {   // v Herně (iframe) celou obrazovku a plochu řeší Herna
     btn.hidden = false; paint();
     btn.addEventListener("click", async () => {
       try {
@@ -267,7 +282,7 @@ const platform = (() => {
     });
     for (const ev of ["fullscreenchange", "webkitfullscreenchange"]) document.addEventListener(ev, () => { paint(); resize(); });
   }
-  if (platform.ios && !platform.canFs && !platform.standalone && Net.store.get("ovs-ioshint") !== "1") {
+  if (platform.ios && !platform.canFs && !platform.standalone && !herna && Net.store.get("ovs-ioshint") !== "1") {
     hint.hidden = false;
     $("iosHintX").addEventListener("click", () => { hint.hidden = true; Net.store.set("ovs-ioshint", "1"); });
   }
@@ -454,7 +469,7 @@ function viewSetup() {
     <input id="fStake" type="text" maxlength="40" placeholder="nebo napiš vlastní sázku" style="margin-top:8px">`,
     how: howTo("cas", Sim.ROUND_MS, TEST_TG || Sim.TARGET, "setupHow"),
     deco: DECO,
-    cta: `<button class="btn" id="bCreate">Připravit výzvu</button><button class="btn alt solo" id="bSolo" type="button">Zkusit sám</button>`,
+    cta: `<button class="btn" id="bCreate">Připravit výzvu</button>${herna ? "" : `<button class="btn alt solo" id="bSolo" type="button">Zkusit sám</button>`}`,
   }), true);
   const chips = $("chips"), stake = $("fStake"), modes = $("modeChips");
   const picked = () => CHOICES.find(c => c.id === modes.querySelector("[aria-pressed=true]").dataset.c);
@@ -472,7 +487,7 @@ function viewSetup() {
     b.setAttribute("aria-pressed", String(!was));
     stake.value = was ? "" : b.textContent;
   });
-  $("bSolo").addEventListener("click", () => {
+  $("bSolo")?.addEventListener("click", () => {
     const a = clampName($("fMe").value);
     if (a) Net.store.set("ovs-name", a);
     startSolo(picked(), a);
@@ -550,9 +565,9 @@ function viewWatch() {
 function viewError(t, text, retry) {
   phase = "menu"; $("hud").hidden = true;
   showView("error", `<h2>${esc(t)}</h2><p>${esc(text || "Odkaz může být neúplný nebo smazaný. Zkus ho otevřít znovu, nebo založ nový souboj.")}</p>
-    ${retry ? `<button class="btn" id="bRetry">Zkusit znovu</button><button class="btn alt" id="bNew">Založit nový souboj</button>` : `<button class="btn" id="bNew">Založit nový souboj</button>`}`);
+    ${herna ? (retry ? `<button class="btn" id="bRetry">Zkusit znovu</button>` : "") : retry ? `<button class="btn" id="bRetry">Zkusit znovu</button><button class="btn alt" id="bNew">Založit nový souboj</button>` : `<button class="btn" id="bNew">Založit nový souboj</button>`}`);
   $("bRetry")?.addEventListener("click", () => { clearTimeout(openFromHash.t); openFromHash(); });
-  $("bNew").addEventListener("click", () => { clearTimeout(openFromHash.t); history.replaceState(null, "", location.pathname + location.search); room = null; viewSetup(); });
+  $("bNew")?.addEventListener("click", () => { clearTimeout(openFromHash.t); history.replaceState(null, "", location.pathname + location.search); room = null; viewSetup(); });
 }
 
 // ---------- místnost ----------
@@ -573,6 +588,7 @@ async function createRoom(a, b, st, picked) {
 const seatDoc = () => ({ k: 0, rdy: 0, sc: 0, ev: [], h: {}, f: {}, lv: Sim.LIVES, t: Date.now() });
 
 async function openFromHash() {
+  if (herna) { openHerna(); return; }
   if (location.hash === "#solo") { startSolo(); return; }
   const m = /^#r\.([0-9a-z]{6,16})$/.exec(location.hash || "");
   if (!m) { viewSetup(); return; }
@@ -585,6 +601,60 @@ async function openFromHash() {
   if (!room.seat) { if (!meta.so) viewIntro(); else viewWatch(); return; }
   decide(true);
 }
+// Herna: dokument hry má id z adresy. Zakladatel ho založí se jmény (sedadlo x), druhý čeká a posadí se na volné místo; s existujícím
+// dokumentem (reload, smazané úložiště) si hráč sedne podle sedadla v Herně (meta.hx = sedadlo Herny, které drží x).
+let hernaT = null;
+async function openHerna() {
+  clearTimeout(hernaT);
+  const H = herna, again = ms => { hernaT = setTimeout(() => { if (herna === H) openHerna(); }, ms); };
+  let meta;
+  try { meta = await Net.load(Net.metaUrl(H.r)); }
+  catch { if (!room) showView("loading", `<h2>Otevírám souboj…</h2><p>Spojení vázne, zkouším to znovu.</p>`); again(2000); return; }
+  if (herna !== H) return;
+  if (!meta) {
+    if (!H.zaklada) {
+      phase = "menu"; $("hud").hidden = true;
+      if (view !== "hwait") showView("hwait", `<h2>Čeká se, až hra naskočí…</h2><p>Soupeř ji právě chystá, rozjede se sama.</p>`);
+      again(800); return;
+    }
+    const c = CHOICES[1];
+    meta = { app: "ovocny-souboj", v: 1, sx: Net.device, so: "", hx: H.hs, g: { a: H.names[H.hs], b: H.names[1 - H.hs], st: "", md: c.md, rl: rlFor(c), tg: TEST_TG || Sim.TARGET, go: 0, sd: 0, mh: {} } };
+    try { await Net.save(Net.metaUrl(H.r), meta); await Net.save(Net.seatUrl(H.r, "x"), seatDoc()); }
+    catch { again(1500); return; }
+    Net.store.set(seatKey(H.r), "x");
+  } else if (meta.app !== "ovocny-souboj") { viewError("Tahle místnost není pro Ovocný souboj."); return; }
+  else {
+    const hx = meta.hx === 0 || meta.hx === 1 ? meta.hx : 1 - H.hs;
+    const seat = H.hs === hx ? "x" : "o", slot = "s" + seat;
+    if (meta[slot] !== Net.device) {
+      try { const r = await Net.commitMeta(H.r, d => d && d[slot] !== Net.device ? { ...d, [slot]: Net.device } : null); if (r.d) meta = r.d; }
+      catch { again(1500); return; }
+    }
+    Net.store.set(seatKey(H.r), seat);
+  }
+  if (herna !== H) return;
+  await enterRoom(H.r, meta);
+  if (herna !== H) return;
+  decide(true);
+}
+// sedadlo v Herně pro vnitřní sedadlo x/o
+const hernaSeat = q => { const hx = room && room.meta.hx; const xs = hx === 0 || hx === 1 ? hx : room.seat === "x" ? herna.hs : 1 - herna.hs; return q === "x" ? xs : 1 - xs; };
+const hernaSent = new Set();
+function hernaResult(winner, go) {
+  const partie = herna.r + ":" + Sim.mOf(go);
+  if (hernaSent.has(partie)) return;
+  hernaSent.add(partie);
+  doHerny({ typ: "vysledek", partie, vitez: winner ? hernaSeat(winner) : null });
+}
+// fáze pro Hernu: ceka (na soupeře, v předsíni) / hraje (odpočet, kolo, čekání na dohrání soupeře) / konec (výsledek)
+let hernaLast = "";
+function hernaTick() {
+  if (!herna) { hernaLast = ""; return; }
+  // „wait“ po obnovení stránky (kolo jsem nehrál v tomto načtení, soupeřův dokument se teprve čte) nehlásí hraje, jen drží předchozí fázi
+  const f = !room || !room.seat || !room.meta.so ? "ceka" : phase === "result" ? "konec" : phase === "wait" && K !== (room.meta.g.go || 0) ? (hernaLast || "ceka") : phase === "count" || phase === "play" || phase === "wait" ? "hraje" : "ceka";
+  if (f !== hernaLast) { hernaLast = f; doHerny({ typ: "stav", faze: f }); }
+}
+setInterval(hernaTick, 200);
 async function enterRoom(id, meta) {
   stopPoll();
   let seat = Net.store.get(seatKey(id));
@@ -860,8 +930,22 @@ function viewLobby() {
   cells($("cellsMe"), 0); cells($("cellsOpp"), 0); { const [hx, ho] = hists(); hudSeries(hx, ho, Sim.mOf(next), md); } hudOppState();
   paintLives($("livesMe"), Sim.LIVES); paintLives($("livesOpp"), Sim.LIVES);
   const joined = !!room.meta.so, rdy = d.rdy >= next;
-  const sig = `lobby|${joined}|${rdy}`;
+  const sig = `lobby|${joined}|${rdy}${herna ? "|" + g.md + "|" + g.rl : ""}`;
   if (view === "lobby" && panel.dataset.sig === sig) return;
+  if (herna) {   // bez výzvy: jména už jsou známá, mód první partie se dá vybrat tady, pravidla jsou po ruce (úvodní obrazovka se přeskakuje)
+    showView("lobby", `
+    <h2>${joined ? "Můžete hrát" : `Čeká se na hráče ${esc(oppName())}`}</h2>
+    <p class="modeline"><b>${modeName(md, g.tg)}.</b> ${modeLine(md, g.rl, g.tg)}</p>
+    <span class="lab" id="modeLab">Mód</span>
+    <div class="chips seg" id="modeChips" role="group" aria-labelledby="modeLab">${modeChips(choiceId(md, g.rl))}</div>
+    <p style="margin-top:12px">${joined ? (rdy ? `Jakmile bude ${esc(oppName())} taky připraven(a), naskočí odpočet.` : "Až klepneš, počkáme na soupeře a pak odpočet 3, 2, 1.") : "Hra se rozjede sama, jakmile si soupeř sedne."}</p>
+    ${joined ? `<button class="btn" id="bReady" ${rdy ? "disabled" : ""}>${rdy ? "Čekám na soupeře…" : "Jdu do toho"}</button>` : ""}
+    ${howTo(md, g.rl, g.tg)}`);
+    panel.dataset.sig = sig;
+    $("bReady")?.addEventListener("click", () => ready(next));
+    $("modeChips").addEventListener("click", e => { const b = e.target.closest("button"); if (b) setMode(b); });
+    return;
+  }
   showView("lobby", `
     <h2>${joined ? "Můžete hrát" : `Čekám, až ${esc(oppName())} přijme výzvu`}</h2>
     <p class="modeline"><b>${modeName(md, g.tg)}.</b> ${modeLine(md, g.rl, g.tg)}</p>
@@ -888,9 +972,9 @@ function viewWaiting() {
     showView("waiting", `<h2>${n} se pořád neozývá</h2>
       <p>Možná ztratil(a) signál, zamkl(a) telefon nebo zavřel(a) stránku. Tvoje skóre je uložené, výsledek naskočí, jakmile ${n} dohraje.</p>
       <button class="btn" id="bHold">Počkat dál</button>
-      <button class="btn alt" id="bLink">Poslat odkaz a vrátit se později</button>`);
+      ${herna ? "" : `<button class="btn alt" id="bLink">Poslat odkaz a vrátit se později</button>`}`);
     $("bHold").addEventListener("click", () => { game.waitHold = Date.now(); viewWaiting(); });
-    $("bLink").addEventListener("click", async () => {
+    $("bLink")?.addEventListener("click", async () => {
       const t = `${room.meta.g.a} a ${room.meta.g.b}, tady je náš Ovocný souboj, výsledek tam čeká: ${linkFor()}`;
       try { if (navigator.share) await navigator.share({ text: t }); else { await navigator.clipboard.writeText(t); toast("Odkaz zkopírován, vlož ho do chatu."); } } catch {}
     });
@@ -910,6 +994,7 @@ function viewResult(hx, ho) {
   const finT = md === "zavod" ? [r.fx, r.fo].filter(f => f != null).sort((a, b) => a - b)[0] : me === "x" ? r.fx : r.fo;
   $("timer").textContent = md === "cas" ? "0:00" : fmtClock(sec(finT)); $("timer").classList.remove("low");
   const nextK = st.nextK, rdy = d.rdy >= nextK;
+  if (herna) hernaResult(st.winner, go);
   $("stateMe").textContent = rdy ? "připraveno" : "";
   $("stateOpp").textContent = room.opp && room.opp.rdy >= nextK ? "připraveno" : "";
   const sig = `${go}|${rdy}|${room.opp && room.opp.rdy}|${g.md}|${g.rl}`;
@@ -932,7 +1017,7 @@ function viewResult(hx, ho) {
   const side = (seat, name) => `<div class="p ${seat}${st.winner === seat ? " win" : ""}"><div class="n">${esc(name)}</div><div class="s">${big(seat)}</div><div class="st">${sub(seat)}</div>${bl(seat)}</div>`;
   const oppRdy = room.opp && room.opp.rdy >= nextK;
   const stake = g.st ? `<div class="stake">${st.winner ? `${wName(other(st.winner))} platí: ${esc(g.st)}` : `Sázka (${esc(g.st)}) zůstává ve hře`}</div>` : "";
-  const hint = room.solo ? "" : oppRdy ? `${esc(oppName())} už čeká na tebe.` : rdy ? "Odpočet naskočí, až klepne i soupeř. Nechce se mu? Pošli odkaz a vraťte se později." : "";
+  const hint = room.solo ? "" : herna ? (oppRdy ? `${esc(oppName())} už čeká na tebe.` : rdy ? "Odpočet naskočí, až klepne i soupeř." : "") : oppRdy ? `${esc(oppName())} už čeká na tebe.` : rdy ? "Odpočet naskočí, až klepne i soupeř. Nechce se mu? Pošli odkaz a vraťte se později." : "";
   showView("result", cols({
     head: `<h2>${head}</h2>`,
     form: `<div class="vs">${room.seat === "o" ? side("o", g.b) + '<div class="mid">:</div>' + side("x", g.a) : side("x", g.a) + '<div class="mid">:</div>' + side("o", g.b)}</div>`,   // já vlevo, stejně jako v HUD
@@ -941,12 +1026,13 @@ function viewResult(hx, ho) {
     <div class="chips seg" id="modeChips" role="group" aria-labelledby="nextLab">${modeChips(choiceId(Sim.modeOf(g.md), g.rl))}</div>
     <button class="btn" id="bNext" ${rdy && !room.solo ? "disabled" : ""}>${room.solo ? "Znovu" : rdy ? "Čekám na soupeře…" : "Odveta"}</button>
     ${hint ? `<p class="small" style="margin:8px 0 0;text-align:center">${hint}</p>` : ""}
-    ${room.solo ? `<button class="btn alt" id="bChallenge">Vyzvat soupeře</button>` : `<button class="btn alt" id="bShareRes">Poslat výsledek do chatu</button>`}`,
+    ${room.solo ? `<button class="btn alt" id="bChallenge">Vyzvat soupeře</button>` : herna ? `<button class="btn alt" id="bOther" type="button">Jiná hra</button>` : `<button class="btn alt" id="bShareRes">Poslat výsledek do chatu</button>`}`,
   }), true);
   panel.dataset.sig = sig;
   $("modeChips").addEventListener("click", e => { const b = e.target.closest("button"); if (b) setMode(b); });
   $("bNext").addEventListener("click", () => ready(nextK));
   $("bChallenge")?.addEventListener("click", leaveSolo);
+  $("bOther")?.addEventListener("click", () => doHerny({ typ: "jina-hra" }));
   $("bShareRes")?.addEventListener("click", async () => {
     const t = `${headScore}${g.st && st.winner ? ` (${nameOfSeat(other(st.winner))} platí: ${g.st})` : ""}. Série ${g.a} ${ser[0]} : ${ser[1]} ${g.b}. Odveta? ${linkFor()}`;
     try { if (navigator.share) await navigator.share({ text: t }); else { await navigator.clipboard.writeText(t); toast("Zkopírováno."); } } catch {}
@@ -1483,5 +1569,6 @@ window.__ovs = {
   drawCalls: () => scene.renderer.info.render.calls,
 };
 
-addEventListener("hashchange", () => { stopPoll(); room = null; openFromHash(); });
+addEventListener("hashchange", () => { stopPoll(); room = null; herna = parseHerna(); openFromHash(); });
 openFromHash();
+if (herna) { doHerny({ typ: "pripraveno" }); hernaTick(); }
