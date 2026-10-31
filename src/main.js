@@ -897,6 +897,7 @@ function setModIcon(mod) {
   const el = $("modIcon");
   el.toggleAttribute("hidden", !mod); el.dataset.mod = mod || "";
   el.innerHTML = mod ? MOD_ICONS[mod] : "";
+  el.classList.remove("pop"); if (mod && !reduced) { void el.getBoundingClientRect(); el.classList.add("pop"); }   // při nástupu krátce pulzne, ať si ho hráč všimne
 }
 function showMod(mod) {
   setModIcon(mod);
@@ -1282,8 +1283,8 @@ function moveAll(clockMs) {
     if (o.pin) { scene.place(o, o.pin.x, o.pin.y, 0); continue; }   // jen pro testy (tests/kolize.cjs)
     o.vx = o.it.vu * hw; o.vy = Sim.vy0(o.it.apex, o.it.gm) - Sim.G * (o.it.gm || 1) * dt;
     if (p.y < Sim.Y0 - 2 && o.vy < 0) {
-      // propadlý kus ovoce (ne bomba, ne karambola) ve třech životech: × u spodního okraje tam, kde zmizel
-      if (game.md === "zivoty" && phase === "play" && Sim.FRUITS.includes(o.kind)) loseLife(Math.max(30, Math.min(innerWidth - 30, scene.toScreen(o.g.position.x, 0).x)), innerHeight - 96);
+      // propadlý kus ovoce (ne bomba, ne karambola, ne obří meloun, ten je bonus) ve třech životech: × u spodního okraje tam, kde zmizel
+      if (game.md === "zivoty" && phase === "play" && Sim.FRUITS.includes(o.kind) && !o.it.hp) loseLife(Math.max(30, Math.min(innerWidth - 30, scene.toScreen(o.g.position.x, 0).x)), innerHeight - 96);
       scene.remove(o); game.live = game.live.filter(x => x !== o); continue;
     }
     scene.place(o, p.x, p.y, dt);

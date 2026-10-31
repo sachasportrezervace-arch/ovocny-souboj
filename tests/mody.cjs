@@ -22,7 +22,7 @@ async function botStep(p, vp) {
   const bombs = t.filter(o => o.kind === "bomba");
   const pick = t.filter(o => o.kind !== "bomba" && bombs.every(b => Math.hypot(b.x - o.x, b.y - o.y) > b.r + 70)).sort((a, b) => a.x - b.x);
   if (!pick.length) return;
-  pick.splice(4);
+  pick.splice(6);   // celá řada (zvláštnost kola „řady“ má 5–6 kusů)
   const pts = [];
   for (const f of pick) { const off = (Math.random() - 0.5) * f.r * 1.2; pts.push([f.x - f.r * 1.4, f.y + off - 4], [f.x + f.r * 1.4, f.y + off + 4]); if (f.ice) pts.push([f.x - f.r * 1.4, f.y + off + 8], [f.x + f.r * 1.4, f.y + off - 8]); }
   await p.mouse.move(pts[0][0], pts[0][1]); await p.mouse.down();

@@ -172,8 +172,13 @@ async function bot(p, untilMs) {
     await Promise.all([waitPhase(A, "play", 8000), waitPhase(B, "play", 8000)]);
     const bots = Promise.all([bot(A, 20000), bot(B, 20000)]);
     await sleep(7000);
-    const [sa, sb] = await Promise.all([st(A), st(B)]);
-    const oppOk = sa.opp !== null && sb.opp !== null && Math.abs(sa.opp - sb.score) <= 8 && Math.abs(sb.opp - sa.score) <= 8;
+    // skóre soupeře jde se zpožděním ~0,5–1 s a zlaté ovoce nebo řada přidá naráz víc bodů, proto 6 vzorků a stačí jeden v toleranci
+    let sa, sb, oppOk = false;
+    for (let i = 0; i < 6 && !oppOk; i++) {
+      if (i) await sleep(300);
+      [sa, sb] = await Promise.all([st(A), st(B)]);
+      oppOk = sa.opp !== null && sb.opp !== null && Math.abs(sa.opp - sb.score) <= 8 && Math.abs(sb.opp - sa.score) <= 8;
+    }
     check(`${label}: živé skóre soupeře`, oppOk, `A ${sa.score} vidí B ${sa.opp} / B ${sb.score} vidí A ${sb.opp}`);
     const [tA, tB] = await Promise.all([A.locator("#timer").innerText(), B.locator("#timer").innerText()]);
     check(`${label}: časovač ve formátu m:ss`, /^0:\d\d$/.test(tA) && /^0:\d\d$/.test(tB), `${tA}/${tB}`);

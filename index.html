@@ -107,8 +107,10 @@ body[data-mode="zivoty"] .lives { display: flex; }
 .sign .state:empty { display: none; }
 .clock { background: var(--linen); color: var(--ink); border-radius: 6px; padding: 5px 10px 6px; text-align: center; box-shadow: 0 6px 14px rgba(0,0,0,.35); margin-top: 6px; }
 .clock .tr { display: flex; align-items: center; justify-content: center; gap: 6px; }
-.clock .modico { width: 26px; height: 26px; flex: none; filter: drop-shadow(0 1px 1px rgba(0,0,0,.35)); }
+.clock .modico { width: 34px; height: 34px; flex: none; filter: drop-shadow(0 1px 1px rgba(0,0,0,.35)); }
 .clock .modico[hidden] { display: none; }
+.clock .modico.pop { animation: icoPop .5s cubic-bezier(.2,.9,.3,1) 3 alternate; }
+@keyframes icoPop { to { transform: scale(1.25); } }
 .clock .t { font-family: var(--disp); font-size: 26px; line-height: 1; font-variant-numeric: tabular-nums; }
 .clock .t.low { color: var(--tomato); }
 .clock .r { font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-soft); margin-top: 2px; white-space: nowrap; }
@@ -136,7 +138,9 @@ body[data-mode="zivoty"] .lives { display: flex; }
 /* finále: deska se rozsvítí teplem (jiné světlo), plynule */
 #stage::after { content: ""; position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 58%, rgba(255,204,112,.34), rgba(255,150,50,.12) 55%, rgba(255,120,30,0) 82%); opacity: 0; transition: opacity .7s; pointer-events: none; }
 body.finale #stage::after { opacity: 1; }
-body.finale .clock .t { color: #FFD23F; text-shadow: 0 0 12px rgba(255,190,60,.55); transition: color .4s; }
+/* finále: číslice zůstanou tmavé (čitelné na lnu), zezlátne rámeček hodin */
+.clock { transition: box-shadow .4s; }
+body.finale .clock { box-shadow: 0 0 0 3px #FFC93C, 0 0 20px rgba(255,190,60,.75), 0 6px 14px rgba(0,0,0,.35); }
 body.finale .clock .modico { filter: drop-shadow(0 0 6px rgba(255,200,80,.8)); }
 #board { transition: opacity .36s; }
 #floats { position: fixed; left: 0; top: 0; width: 100%; height: var(--app-h); pointer-events: none; overflow: hidden; }
@@ -270,7 +274,7 @@ body[data-view="setup"] #iosHint:not([hidden]), body[data-view="intro"] #iosHint
   .cells b { width: 48px; height: 64px; font-size: 44px; border-radius: 4px; }
   .sign .state { font-size: 19px; min-height: 22px; margin-top: 5px; }
   .clock { padding: 8px 20px 10px; margin-top: 12px; min-width: 160px; }
-  .clock .t { font-size: 44px; }
+  .clock .t { font-size: 44px; } .clock .modico { width: 44px; height: 44px; }
   .clock .r { font-size: 13px; margin-top: 4px; }
   .clock .ser { font-size: 21px; margin-top: 5px; } .clock .ser b { font-size: 19px; }
   #count { font-size: min(22vw, 260px); }
@@ -298,7 +302,7 @@ body[data-view="setup"] #iosHint:not([hidden]), body[data-view="intro"] #iosHint
 @media (max-height: 520px) and (orientation: landscape) {
   .sign { padding: 3px 8px 4px; } .sign .who { font-size: 16px; } .cells { margin-top: 2px; }
   .cells b { width: 22px; height: 28px; font-size: 20px; } .charge { height: 4px; margin-top: 3px; } .lives { margin-top: 3px; } .lives i { width: 7px; height: 7px; } .sign .state { display: none; }
-  .clock { margin-top: 2px; padding: 3px 10px 4px; } .clock .t { font-size: 22px; }
+  .clock { margin-top: 2px; padding: 3px 10px 4px; } .clock .t { font-size: 22px; } .clock .modico { width: 24px; height: 24px; }
   .tag { padding: 18px 18px 12px; } .tag h1 { font-size: 26px; } .tag h2 { font-size: 21px; }
   .tag label, .tag .lab { margin: 6px 0 3px; font-size: 12px; }
   #panel { padding-top: calc(var(--safe-t) + var(--top-h) + 8px); padding-bottom: calc(var(--safe-b) + 60px); }

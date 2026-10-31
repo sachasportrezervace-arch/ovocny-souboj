@@ -2,6 +2,18 @@
 
 PŘEVZATO 31. 10. – dodělává session na účtu P, jiná session sem nepíše.
 
+## 2026-10-31 ~19:30 PŘEDÁVKA (Claude, session na účtu P, kontext plný) – Ovocný souboj: kolize, finále, rozmanitost
+- **Hotovo (lokálně, NEPUSHNUTO):** commity `3db56cb` (WIP po přerušení), `f2a4116` + poslední commit „Design-eye opravy…“ (viz `git log`).
+  - Kolize: švih jako úsečka proti pohybujícímu se kusu (`Sim.sweptDist`), ovoce 1,28 r + 9 px, bomba 60 % r. Bomba v rozpisu nikdy blíž než 0,6 součtu poloměrů (`clearBombs`), bomba v řadě má mezeru navíc, kusy vyhozené naráz se rozestoupí (`spreadOut`, `row` u řad). Finále nepouští staré kusy, které by v něm visely > 1,5 s.
+  - Finále (kolo na čas ≥ 45 s, posledních 8,6 s): bez textu, teplé světlo, zlatý rámeček hodin, velký zlatý znak, fanfára.
+  - Desky: + zima, jaro (roční období: podzim, zima, jaro). Ikona kola v HUD opravena (`toggleAttribute("hidden")`), 34/44/24 px a při nástupu pulzne. Obří meloun ve třech životech nebere život.
+  - `docs/mody.md` (sekce Proti stereotypu, Finále, Kolize), `PRODUCT.md`.
+- **Ověřeno (port 8801):** `node tests/sim.test.mjs` 19/19 · `kolize.cjs` 17/17 (Chromium + WebKit iPhone dotyk) · `float` 6/6 · `feel` 12/12 · `vyzva-b` 26/26 · `duel` 49/49 (po úpravě testu: živé skóre 6 vzorků) · `rozmanitost.cjs` 32/32 (3 kola, liší se mod/deska/hash, finále u obou, body ve finále 18–97).
+- **Selhává:** `node tests/mody.cjs http://127.0.0.1:8801/` 20/21 – „tři životy: Radce kolo skončilo samo do 2,5 s“: bot B na iPhonu ztratí 3 životy za ~7 s (padá i se zvláštností obri). Podezření: bot v `tests/mody.cjs` `botStep` filtruje `o.y < vp.height - 60`, nízké kusy nesekne; ověřit, jestli nejde o hru (kus vidět jen u spodního okraje).
+- **Design-eye (1. kolo):** „ještě ne, blízko“. Blokující 1 (zlaté číslice hodin ve finále) a 2 (malá ikona) opraveny, nové rendery `tests/shots/rozmanitost-k1-finale-iphone.png` vypadají čitelně. Neblokující: kiwi a citron hůř rozlišitelné, velká tyrkysová šmouha naschválu, dlouhá nápověda na mobilu.
+- **Další krok:** 1) opravit/vyřešit mody 3 životy → 21/21; 2) design-eye 2. kolo (verdikt „profi indie hra“); 3) push `git -c credential.helper= -c "credential.helper=!gh auth git-credential" push`, počkat na Pages, živě `node tests/vyzva-b.cjs https://sachasportrezervace-arch.github.io/ovocny-souboj/` + `rozmanitost.cjs`; 4) hlášení nadřazené session (URL, 3–5 bodů pro hráče, testy, NEOVĚŘENO).
+- Commity bez podpisu AI (pravidlo převzetí). Server: `.claude/launch.json` port 8801.
+
 ## 2026-10-30 10:28-2026-10-31 17:28 - Zatím ne [compact]
 - Model: claude-opus-5-5 · session `922eab0b` · 18 zadání <!-- kompas:922eab0b:compact -->
 - **Zadání:**
