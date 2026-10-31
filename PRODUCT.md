@@ -7,6 +7,9 @@ Prohlížečová hra pro dva na jednom odkazu, bez účtů. Oba hráči sekají 
 semínkem dané sekvenci, jedno kolo v jednom ze tří módů (na čas 1/2 min, závod do 50 bodů, tři životy; viz `docs/mody.md`),
 pak odveta (mód jde přepnout na výsledku) a série soubojů. Twist: combo (3+ kusy jedním tahem) nebo
 speciální ovoce pošle soupeři sabotáž (bomba navíc, šťávová šmouha, zamrzlé ovoce na dvě seknutí).
+Proti stereotypu: každé kolo má jinou zvláštnost (zlaté ovoce, řady, obří meloun, měsíční tíže) a jinou desku
+(i roční období), kolo na čas končí finálovou fontánou bez bomb, kdo prohrává, nabíjí rychleji, a výhry v sérii
+odemykají stopy čepele.
 
 ## Kdo a kde
 - Mark a Radka (rande z Tinderu, zatím se moc neznají). Hrají každý na svém telefonu, každý jinde,

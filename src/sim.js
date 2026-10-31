@@ -67,7 +67,7 @@ export function schedule(seed, roundMs = ROUND_MS) {
     const apex = o.apex !== undefined ? o.apex : 2.2 + r() * 4.8;
     const ax = [r() - 0.5, r() - 0.5, r() - 0.5];
     const n = Math.hypot(...ax) || 1;
-    out.push({ id: out.length, t: Math.round(t), kind, u, vu, apex, spin: [ax[0] / n, ax[1] / n, ax[2] / n, 1.5 + r() * 3] });
+    out.push({ id: out.length, t: Math.round(t), kind, u, vu, apex, ...(o.row != null ? { row: o.row } : {}), spin: [ax[0] / n, ax[1] / n, ax[2] / n, 1.5 + r() * 3] });
   };
   // karamboly (posílají bombu navíc) jsou rozložené rovnoměrně, cca po 12 s, aby měl každý stejnou šanci
   // první karambola je zaručeně brzy (4–6 s), aby oba hned poslali a dostali první naschvál; zbylé se rozloží do 20–90 % kola
@@ -86,12 +86,13 @@ export function schedule(seed, roundMs = ROUND_MS) {
     // nejvýš jedna bomba ve vlně; v oponě nikdy na kraji, ať se dá obejít tahem
     const bombAt = r() < Math.min(0.9, bombP * size * 0.85) ? (burst ? 1 + Math.floor(r() * (size - 2)) : Math.floor(r() * size)) : -1;
     if (burst) {
-      // řada s mírným obloukem: stejný čas vrcholu, rozestup ~0,26, aby se vešla do jednoho tahu
-      const dir = r() < 0.5 ? 1 : -1, du = 0.2 + r() * 0.08, u0 = -dir * du * (size - 1) / 2 + (r() - 0.5) * 0.2;
+      // řada s mírným obloukem: stejný čas vrcholu, rozestup ~0,27, aby se vešla do jednoho tahu; bomba v řadě má kolem sebe mezeru navíc
+      const gap = bombAt >= 0 ? 1.2 : 0, span = size - 1 + gap;
+      const dir = r() < 0.5 ? 1 : -1, du = (bombAt >= 0 ? 0.2 : 0.25) + r() * 0.05, u0 = -dir * du * span / 2 + (r() - 0.5) * 0.2;
       const base = 3 + r() * 2.6, bow = (r() - 0.5) * 0.7;
       for (let i = 0; i < size; i++) {
-        const u = u0 + dir * du * i, k = i - (size - 1) / 2;
-        item(t + i * 75, i === bombAt ? "bomba" : pick(FRUITS), { u, vu: -u * 0.2, apex: base + bow * k + 0.3 * (r() - 0.5) });
+        const u = u0 + dir * du * (i + (bombAt < 0 ? 0 : i === bombAt ? gap / 2 : i > bombAt ? gap : 0)), k = i - (size - 1) / 2;
+        item(t + i * 75, i === bombAt ? "bomba" : pick(FRUITS), { u, vu: -(u0 + dir * du * span / 2) * 0.2, apex: base + bow * k + 0.3 * (r() - 0.5), row: Math.round(t) });   // celá řada driftuje spolu, rozestup drží
       }
     } else {
       for (let i = 0; i < size; i++) item(t + (stagger ? i * 190 : i * 25), i === bombAt ? "bomba" : pick(FRUITS));
@@ -173,32 +174,64 @@ export function minGap(a, b, fh = NARROW_HALF_W) {
 // poměr rozestupu k součtu poloměrů: 1 = kusy se při nejužším displeji sotva dotknou, 0,6 = střed bomby leží mimo ovoce
 export const CLEAR = 0.6;
 export const gapRatio = (a, b, fh) => minGap(a, b, fh) / (radiusOf(a) + radiusOf(b));
-const movable = o => FRUITS.includes(o.kind) && !o.hp && !o.fin;
-// Bomba, která by se letem sešla s jiným kusem blíž než CLEAR, se nejdřív posune v čase (po 110 ms, nejvýš o 1,5 s), pak i do jiné dráhy;
+const movable = (o, rows) => FRUITS.includes(o.kind) && !o.hp && !o.fin && (o.row == null || rows.get(o.row) > 5);   // řada na combo přijde nejvýš o jeden kus z šesti
+// Bomba, která by se letem sešla s jiným kusem blíž než CLEAR, se nejdřív posune v čase (po 110 ms, nejvýš o 2,2 s), pak i do jiné dráhy;
 // když se nedá vyhnout, uvolní jí místo sousední běžné ovoce (vypadne z rozpisu); kdyby překážela bomba, karambola nebo zlatý kus, z rozpisu vypadne.
 // Deterministické (žádná náhoda), takže oba hráči mají stejný rozpis.
 function clearBombs(list, ms, endBy = Infinity) {
+  spreadOut(list);
   const lim = ms - 1500;
-  const drop = new Set();
+  const drop = new Set(), rows = new Map();
+  for (const o of list) if (o.row != null && FRUITS.includes(o.kind)) rows.set(o.row, (rows.get(o.row) || 0) + 1);
   for (const b of list) {
     if (b.kind !== "bomba" || b.from || drop.has(b)) continue;
     const t0 = b.t, others = list.filter(o => o !== b && !drop.has(o) && Math.abs(o.t - t0) < 7000);
     let best = null;
-    outer: for (const du of [0, 0.22, -0.22, 0.44, -0.44]) for (let k = 0; k <= 14; k++) {
+    outer: for (const du of [0, 0.22, -0.22, 0.44, -0.44, 0.66, -0.66]) for (let k = 0; k <= 20; k++) {
       const t = t0 + k * 110;
       if (t > Math.max(lim, t0) || (k && t + flightTime(b) * 1000 > endBy)) break;   // ve finále bomba nedoletí za jeho začátek
       const c = { ...b, t, u: Math.max(-0.85, Math.min(0.85, b.u + du)) };
       const bad = others.filter(o => gapRatio(c, o) < CLEAR);
-      if (bad.length > 2 || bad.some(o => !movable(o))) continue;   // nejvýš dvě ovoce uvolní místo, jinak se bomba radši promění v ovoce
+      if (bad.length > 2 || bad.some(o => !movable(o, rows))) continue;   // nejvýš dvě ovoce uvolní místo, jinak se bomba radši promění v ovoce
       const score = bad.length * 10 + k * 0.1 + Math.abs(du);
       if (!best || score < best.score) best = { score, t: c.t, u: c.u, bad };
       if (!bad.length) break outer;
     }
     if (!best) { drop.add(b); continue; }   // bez uvolnění místa bomba z rozpisu vypadne (nová kusy kolem ostatních nevznikají)
     b.t = best.t; b.u = best.u;
-    for (const o of best.bad) drop.add(o);
+    for (const o of best.bad) { drop.add(o); if (o.row != null) rows.set(o.row, rows.get(o.row) - 1); }
   }
   return renumber(list.filter(o => !drop.has(o)));
+}
+// Překryv dvou kusů ovoce vyhozených skoro naráz (do TOGETHER_MS): když by se letem držely středy blíž než SPREAD × součet poloměrů
+// (jeden půlkou schová druhý) déle než OVERLAP_MS, pozdější kus se posune do vedlejší dráhy (po 0,12, nejvýš 5×). Kusy vyhozené
+// v jinou chvíli se jen zkříží (dráhy míří ke středu), to vypadá přirozeně a nevadí. Deterministické.
+export const SPREAD = 0.5, OVERLAP_MS = 220, TOGETHER_MS = 450;
+export function overlapMs(a, b, k = SPREAD, fh = NARROW_HALF_W) {
+  const t0 = Math.max(a.t, b.t), t1 = Math.min(a.t + flightTime(a) * 1000, b.t + flightTime(b) * 1000), lim = k * (radiusOf(a) + radiusOf(b));
+  let n = 0;
+  for (let t = t0; t < t1; t += 40) {
+    const pa = posAt(a, (t - a.t) / 1000), pb = posAt(b, (t - b.t) / 1000);
+    if (pa.y > -9.5 && pb.y > -9.5 && Math.hypot((pa.x - pb.x) * fh, pa.y - pb.y) < lim) n += 40;
+  }
+  return n;
+}
+function spreadOut(list) {
+  list.sort((a, b) => a.t - b.t || a.id - b.id);
+  for (let i = 0; i < list.length; i++) {
+    const b = list[i];
+    if (b.kind === "bomba" || b.from) continue;
+    for (let n = 0; n < 5; n++) {
+      let a = null;
+      for (let j = i - 1; j >= 0 && b.t - list[j].t < TOGETHER_MS; j--) if (list[j].kind !== "bomba" && (b.row == null || list[j].row !== b.row) && overlapMs(list[j], b) > OVERLAP_MS) { a = list[j]; break; }
+      if (!a) break;
+      const dir = b.u > a.u || (b.u === a.u && b.u < 0) ? 1 : -1;
+      let u = b.u + dir * 0.12;
+      if (Math.abs(u) > 0.88) u = a.u - dir * 0.12;   // u kraje radši na druhou stranu
+      u = Math.max(-0.88, Math.min(0.88, u));
+      b.u = u;
+    }
+  }
 }
 // nahodilá bomba z naschválu (hraje se lokálně): z několika zkusmých drah vybere tu, která je nejdál od ostatních kusů
 export function sabotageBomb(sched, t, rand = Math.random) {
@@ -227,7 +260,7 @@ export const hitRadius = (kind, rPx) => kind === "bomba" ? rPx * BOMB_HIT : rPx 
 // ---------- rozmanitost (docs/mody.md): modifikátor kola, deska, finále, dohánění a čepel ----------
 // Všechno náhodné se bere ze semínka kola `g.sd`, takže oba hráči dostanou totéž; místní věci (dohánění, čepel) rozpis nemění.
 export const MODS = ["zlate", "rady", "obri", "mesic"];
-export const THEMES = ["orech", "bridlice", "ubrus", "dlazdice", "podzim"];
+export const THEMES = ["orech", "bridlice", "ubrus", "dlazdice", "podzim", "zima", "jaro"];   // podzim, zima a jaro = roční období
 const hash = (seed, salt) => { let h = Math.imul((seed >>> 0) ^ salt, 2654435761) >>> 0; h ^= h >>> 15; h = Math.imul(h, 2246822519) >>> 0; h ^= h >>> 13; return h >>> 0; };
 export const modOf = seed => MODS[hash(seed, 0x51ED270B) % MODS.length];
 export const themeOf = seed => THEMES[hash(seed, 0x2C1B3C6D) % THEMES.length];
@@ -278,10 +311,10 @@ export function applyMod(base, mod, seed, span) {
   } else if (mod === "rady") {
     // „opony“: každých ~9 s řada 5–6 kusů za sebou, jde vzít jedním tahem na combo; v okolí se vyřadí stejný počet běžných kusů
     for (const tt of targets(Math.max(2, Math.round(span / 9000)), 0.06, 0.94)) {
-      const size = 5 + Math.floor(r() * 2), dir = r() < 0.5 ? 1 : -1, du = 0.2 + r() * 0.06, u0 = -dir * du * (size - 1) / 2 + (r() - 0.5) * 0.2, base = 3.2 + r() * 2.4;
+      const size = 5 + Math.floor(r() * 2), dir = r() < 0.5 ? 1 : -1, du = 0.25 + r() * 0.04, u0 = -dir * du * (size - 1) / 2 + (r() - 0.5) * 0.2, base = 3.2 + r() * 2.4;
       let drop = size;
       for (const i of out.filter(isFruit).sort((a, b) => Math.abs(a.t - tt) - Math.abs(b.t - tt))) { if (!drop) break; if (Math.abs(i.t - tt) < 1600) { i.kind = "_x"; drop--; } }
-      for (let k = 0; k < size; k++) { const u = u0 + dir * du * k; add(tt + k * 75, SMALL[Math.floor(r() * SMALL.length)], { u, vu: -u * 0.2, apex: base + 0.3 * (r() - 0.5) }); }
+      for (let k = 0; k < size; k++) { const u = u0 + dir * du * k; add(tt + k * 75, SMALL[Math.floor(r() * SMALL.length)], { u, vu: -(u0 + dir * du * (size - 1) / 2) * 0.2, apex: base + 0.3 * (r() - 0.5), row: Math.round(tt) }); }
     }
     out = out.filter(i => i.kind !== "_x");
   } else if (mod === "mesic") {
@@ -295,8 +328,8 @@ export function applyMod(base, mod, seed, span) {
 // finále: vlny po ~0,95 s, první 4 a další 5 kusů (vějíř nebo řada na combo), první vlna plave pomalu (gm 0,65) jako „nádech“, v poslední vlně zlaté kusy
 export function addFinale(list, seed, ms) {
   const r = rng((seed >>> 0) ^ 0x1B873593), F0 = finaleStart(ms);
-  // pryč běžné kusy po začátku finále a bomby, které by do finále doletěly
-  const out = list.filter(i => i.kind === "karambola" || (i.t < F0 && (i.kind !== "bomba" || i.t + flightTime(i) * 1000 <= F0)));
+  // pryč kusy po začátku finále, bomby, které by do finále doletěly, a ostatní kusy, které by ve finále visely déle než 1,5 s
+  const out = list.filter(i => i.t < F0 && i.t + flightTime(i) * 1000 <= F0 + (i.kind === "bomba" ? 0 : 1500));
   const add = (t, kind, o) => out.push({ id: 0, t: Math.round(t), kind, vu: 0, spin: spinOf(r), fin: true, ...o });
   const waves = 8, step = (FINALE_MS - 2000) / (waves - 1);
   for (let w = 0; w < waves; w++) {
@@ -304,9 +337,9 @@ export function addFinale(list, seed, ms) {
     for (let k = 0; k < size; k++) {
       const gold = w === waves - 1 && k % 2 === 0;   // 3 zlaté v poslední vlně
       let u, apex;
-      if (line) { const du = 0.24; u = -dir * du * (size - 1) / 2 + dir * du * k; apex = 4 + 0.12 * (k - 2) * dir + 0.2 * r(); }
+      if (line) { const du = 0.27; u = -dir * du * (size - 1) / 2 + dir * du * k; apex = 4 + 0.12 * (k - 2) * dir + 0.2 * r(); }
       else { u = -0.8 + 1.6 * (k + 0.5) / size + (r() - 0.5) * 0.12; apex = 3 + r() * 2.5; }
-      add(t + k * (line ? 70 : 45), gold ? "zlate" : SMALL[Math.floor(r() * SMALL.length)], { u, vu: -u * 0.15, apex: Math.max(apex, gold ? 4.8 : 0), gm: slow });
+      add(t + k * (line ? 70 : 45), gold ? "zlate" : SMALL[Math.floor(r() * SMALL.length)], { u, vu: line ? -(u - dir * 0.27 * (k - (size - 1) / 2)) * 0.15 : -u * 0.06, apex: Math.max(apex, gold ? 4.8 : 0), gm: slow, row: Math.round(t) });
     }
   }
   return renumber(out);

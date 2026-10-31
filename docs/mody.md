@@ -60,3 +60,28 @@ Během hry nepřibyly žádné hlášky.
   zrychluje. Vyhrává, kdo vydrží déle. Hodiny ukazují tvoji výdrž. Když vydržíte oba celé 2 minuty, rozhodne skóre.
 - **Ve všech módech:** přesný řez dává +2, měřič naschválu posílá soupeři šmouhu, mráz nebo bombu, sázka a série platí přes
   módy.
+
+## Proti stereotypu (2026-10-31, večer)
+Cíl: tři kola za sebou se musí lišit, ale férově. Všechno náhodné se bere ze semínka kola, takže oba hráči mají totéž.
+
+- **Zvláštnost kola** (`Sim.MODS`, ikona v hodinách a krátce velká při odpočtu, bez textu):
+  - *Zlaté ovoce:* pár vzácných zlatých kusů za 5 bodů.
+  - *Řady:* zhruba co 9 s letí řada 5–6 kusů, kterou jde vzít jedním tahem na combo.
+  - *Obří meloun:* pomalý velký meloun na 4 řezy, každý řez bod, poslední +6.
+  - *Měsíční tíže:* všechno letí pomaleji a výš, kusů je o třetinu méně.
+  - Další kolo má vždy jinou zvláštnost i jinou desku než předchozí (`Sim.pickSeed`).
+- **Desky a roční období** (`Sim.THEMES`): ořech, břidlice, piknikový ubrus, modré kachle, podzim (listí), zima (jinovatka a vločky), jaro (květy třešně). Všechny tmavé a klidné, ať vynikne ovoce.
+- **Šance na návrat:** kdo je o 10 a víc bodů pozadu (ve třech životech: kdo má méně životů), nabíjí měřič naschválu dvakrát rychleji. Pozná se to jen na měřiči (tlustší, běžící pruhy, záře). Vypne se, až je rozdíl pod 5 bodů, takže se zpožděním ~0,5 s nebliká.
+- **Stopy čepele** za výhry v sérii: 1 výhra jiskry, 2 dvojitá čepel, 3 zlatá a delší, 4+ duha s hvězdou. Vzorek je pod skóre na výsledku, nová krátce vyskočí.
+
+## Finále kola („jak v Ninja Fruitu na konci“)
+- Posledních ~8,6 s kola **na čas** je fontána: 8 vln po ~1 s, střídá se vějíř přes celou šířku a řada na combo. Žádné bomby a žádné naschvály, kus za 2 body, v poslední vlně tři zlaté.
+- Ohlášení bez textu: deska se rozsvítí teplým světlem, hodiny zezlátnou, zazní fanfára a krátce vyskočí zlatý znak (hvězda s ovocem). První vlna plave pomalu jako nádech.
+- **Do 50 bodů** finále nemá (nemá pevný konec), **Tři životy** taky ne (kolo končí smrtí, ne časem).
+
+## Kolize (2026-10-31)
+- Řez se počítá jako průnik úsečky tahu s pohybujícím se kusem (`Sim.sweptDist`), takže rychlý švih ani kus uletělý mezi snímky se nepřeskočí.
+- Ovoce má zásahovou zónu 1,28 × poloměr + 9 px, bomba jen 60 % poloměru: počítá se, jen když čepel projde blízko jejího středu.
+- Rozpis: bomba se nikdy nesejde s jiným kusem blíž než 0,6 součtu poloměrů (posune se v čase nebo do vedlejší dráhy, jinak uvolní místo nebo vypadne). Bomba v řadě má kolem sebe mezeru navíc. Bomba je vždy vpředu, ovoce ve čtyřech hloubkách.
+- Dva kusy vyhozené skoro naráz, které by se letem schovaly jeden za druhý, se rozestoupí do vedlejší dráhy (`spreadOut`); řady na combo letí souběžně a rozestup drží. Všechno deterministicky, oba hráči mají stejný rozpis.
+- Regresní testy: `node tests/sim.test.mjs` a `node tests/kolize.cjs <URL>` (Chromium desktop + WebKit iPhone 13).

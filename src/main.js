@@ -130,7 +130,44 @@ function autumn(g, w, h, r) {
     g.restore();
   }
 }
-const BOARDS = { orech: walnut, bridlice: slate, ubrus: cloth, dlazdice: tiles, podzim: autumn };
+// zima: břidlice s jinovatkou v rozích a pár plochými vločkami (šestiramenné hvězdičky)
+function winter(g, w, h, r) {
+  slate(g, w, h, r);
+  for (const [cx, cy] of [[0, 0], [w, 0], [0, h], [w, h]]) {
+    const R = Math.max(w, h) * 0.42, gr = g.createRadialGradient(cx, cy, 0, cx, cy, R);
+    gr.addColorStop(0, "rgba(225,240,255,.16)"); gr.addColorStop(1, "rgba(225,240,255,0)");
+    g.fillStyle = gr; g.fillRect(0, 0, w, h);
+  }
+  const n = Math.round(10 + w * h / 90000);
+  g.strokeStyle = "rgba(230,242,255,.2)"; g.lineCap = "round";
+  for (let i = 0; i < n; i++) {
+    const x = r() * w, y = r() * h, L = 7 + r() * 13, a0 = r();
+    g.lineWidth = 1.2 + L / 10;
+    for (let k = 0; k < 6; k++) {
+      const a = a0 + k * Math.PI / 3, ex = x + Math.cos(a) * L, ey = y + Math.sin(a) * L;
+      g.beginPath(); g.moveTo(x, y); g.lineTo(ex, ey); g.stroke();
+      const mx = x + Math.cos(a) * L * 0.6, my = y + Math.sin(a) * L * 0.6, b = L * 0.28;
+      g.beginPath(); g.moveTo(mx + Math.cos(a + 0.8) * b, my + Math.sin(a + 0.8) * b); g.lineTo(mx, my); g.lineTo(mx + Math.cos(a - 0.8) * b, my + Math.sin(a - 0.8) * b); g.stroke();
+    }
+  }
+}
+// jaro: ořechová deska s rozfoukanými květy třešně (pět plochých okvětních lístků, žlutý střed)
+function spring(g, w, h, r) {
+  walnut(g, w, h, r);
+  const n = Math.round(9 + w * h / 110000);
+  for (let i = 0; i < n; i++) {
+    const x = r() * w, y = r() * h, s = 9 + r() * 9, a0 = r() * 6.283;
+    g.save(); g.translate(x, y); g.rotate(a0); g.globalAlpha = 0.62;
+    g.fillStyle = r() < 0.5 ? "hsl(345 62% 78%)" : "hsl(340 48% 86%)";
+    for (let k = 0; k < 5; k++) { g.rotate(Math.PI * 2 / 5); g.beginPath(); g.ellipse(0, -s * 0.62, s * 0.42, s * 0.62, 0, 0, 6.283); g.fill(); }
+    g.globalAlpha = 0.8; g.fillStyle = "hsl(44 90% 62%)"; g.beginPath(); g.arc(0, 0, s * 0.2, 0, 6.283); g.fill();
+    g.restore();
+  }
+  g.globalAlpha = 0.5; g.fillStyle = "hsl(345 55% 80%)";   // pár samotných lístků
+  for (let i = 0; i < n * 2; i++) { g.beginPath(); g.ellipse(r() * w, r() * h, 3.5 + r() * 2.5, 2 + r() * 1.5, r() * 3.14, 0, 6.283); g.fill(); }
+  g.globalAlpha = 1;
+}
+const BOARDS = { orech: walnut, bridlice: slate, ubrus: cloth, dlazdice: tiles, podzim: autumn, zima: winter, jaro: spring };
 function paintBoard(theme = curTheme) {
   curTheme = BOARDS[theme] ? theme : "orech";
   const w = innerWidth, h = innerHeight, pr = Math.max(0.6, Math.min(devicePixelRatio || 1, 1.5, Math.sqrt(2.4e6 / (w * h))));
@@ -853,9 +890,12 @@ const MOD_ICONS = {
   obri: COIN + '<circle cx="20" cy="21" r="12.5" fill="#2F7D3A"/><path d="M12 14q-4 7 2 15M20 9q-4 12 0 24M28 14q4 7-2 15" stroke="#1D5428" stroke-width="2.4" fill="none" stroke-linecap="round"/><path d="M8 10L32 33" stroke="#F1E6D0" stroke-width="3.6" stroke-linecap="round"/><path d="M8 10L32 33" stroke="#E8414B" stroke-width="2" stroke-linecap="round"/>',
   mesic: COIN + '<path d="M24 7.5a12.5 12.5 0 1 0 8 19.5 10.5 10.5 0 0 1-8-19.5z" fill="#F6EBD3"/><circle cx="25.5" cy="25" r="3.8" fill="#FF9419"/><circle cx="31" cy="14" r="1.4" fill="#F6EBD3"/><circle cx="12" cy="31" r="1.2" fill="#F6EBD3"/>',
 };
+// finále: zlatá hvězdice s vějířem ovoce, bez textu (v hodinách nahradí znamení modifikátoru a krátce vyskočí velká)
+const FIN_ICON = COIN.replace("#23302B", "#3A2A12").replace("#8A5A33", "#FFC93C") + '<path d="M20 6l3.6 8.4 9.1.8-6.9 6 2.1 8.9L20 25.4l-7.9 4.7 2.1-8.9-6.9-6 9.1-.8z" fill="#FFD23F"/><circle cx="20" cy="19" r="3.4" fill="#E8414B"/><circle cx="11" cy="31" r="2.6" fill="#FF9419"/><circle cx="29" cy="31" r="2.6" fill="#8FC63F"/><circle cx="20" cy="33" r="2.2" fill="#9B5BD4"/>';
+MOD_ICONS.finale = FIN_ICON;
 function setModIcon(mod) {
   const el = $("modIcon");
-  el.hidden = !mod; el.dataset.mod = mod || "";
+  el.toggleAttribute("hidden", !mod); el.dataset.mod = mod || "";
   el.innerHTML = mod ? MOD_ICONS[mod] : "";
 }
 function showMod(mod) {
@@ -875,12 +915,11 @@ function schedSig(s) {
   }
   return { n: s.length, kinds, hash: h, fin: s.filter(i => i.fin).length, big: s.filter(i => i.hp).length, moon: s.some(i => i.gm && i.gm !== 1 && !i.fin) };
 }
-// finále: kolo na čas, posledních ~8,6 s; nová deska se rozsvítí teplem, zazní fanfára a „Finále!“ ve stylu „Sekej!“, první vlna plave pomalu
+// finále: kolo na čas, posledních ~8,6 s; deska se rozsvítí teplem, hodiny zezlátnou, zazní fanfára a krátce vyskočí zlatý znak (bez textu); první vlna plave pomalu
 function startFinale(clock) {
   game.fin0 = true; game.scoreFin = game.score; game.queue.length = 0;
   document.body.classList.add("finale");
-  $("count").innerHTML = `<span class="go">Finále!</span>`;
-  setTimeout(() => { if (phase === "play") $("count").innerHTML = ""; }, 900);
+  showMod("finale"); setTimeout(() => { if (phase === "play") hideModBig(); }, 1100);   // žádný text přes plochu: velký zlatý znak, zlaté hodiny a teplé světlo
   sound.finale(); buzz([30, 40, 30]);
   window.__ovs.log.push({ ev: "finale", clock: Math.round(clock), at: Date.now(), score: game.score });
 }
@@ -1341,6 +1380,7 @@ window.__ovs = {
     return { r: o.r / scene.HALF_H * scene.h / 2 * f };
   },
   clearLive() { for (const o of game.live) scene.remove(o); game.live = []; },
+  board: id => paintBoard(id),   // jen pro screenshoty desek
   state: () => ({ phase, view, K, mod: game.mod, theme: curTheme, blade: game.blade, boost: game.boost, fin0: game.fin0, finAt: game.finAt, scoreFin: game.scoreFin, finCuts: game.finCuts || 0, clock: phase === "play" ? Math.round(performance.now() - game.start) : null, score: game.score, md: game.md, lives: game.lives, fin: game.fin, oppF: game.oppF, why: game.endWhy, gmd: room && room.meta.g.md, opp: room && room.opp ? room.opp.sc : null, seat: room && room.seat, go: room && room.meta.g.go, rl: room && room.meta.g.rl, sent: game.sent, got: game.got, precise: game.precise, charge: game.charge, bombs: game.bombs, cuts: game.cuts, queue: game.queue.length, live: game.live.length }),
   targets: () => game.live.filter(o => !o.dead).map(o => ({ kind: o.kind, ice: !!o.ice, hp: o.hp || 0, ...scene.toScreen(o.g.position.x, o.g.position.y, o.g.position.z), r: o.r / scene.HALF_H * scene.h / 2 * scene.persp(o.g.position.z) })),
   fps: fpsStats,

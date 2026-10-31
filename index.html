@@ -136,6 +136,8 @@ body[data-mode="zivoty"] .lives { display: flex; }
 /* finále: deska se rozsvítí teplem (jiné světlo), plynule */
 #stage::after { content: ""; position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 58%, rgba(255,204,112,.34), rgba(255,150,50,.12) 55%, rgba(255,120,30,0) 82%); opacity: 0; transition: opacity .7s; pointer-events: none; }
 body.finale #stage::after { opacity: 1; }
+body.finale .clock .t { color: #FFD23F; text-shadow: 0 0 12px rgba(255,190,60,.55); transition: color .4s; }
+body.finale .clock .modico { filter: drop-shadow(0 0 6px rgba(255,200,80,.8)); }
 #board { transition: opacity .36s; }
 #floats { position: fixed; left: 0; top: 0; width: 100%; height: var(--app-h); pointer-events: none; overflow: hidden; }
 .float { position: absolute; font-family: var(--disp); font-size: 22px; white-space: nowrap; transform: translate(-50%, -50%); color: var(--linen); text-shadow: 0 2px 0 rgba(21,12,7,.9), 0 0 10px rgba(21,12,7,.75); animation: rise 1.1s ease-out forwards; }
