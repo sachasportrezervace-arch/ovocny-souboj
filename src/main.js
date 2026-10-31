@@ -236,8 +236,7 @@ function float(x, y, html, cls = "") {
   $("floats").appendChild(el);
   const w = el.offsetWidth, h = el.offsetHeight, t = performance.now();
   while (floatBoxes.length && t - floatBoxes[0].t > 1100) floatBoxes.shift();
-  const bn = $("banner"), bnr = bn.classList.contains("on") ? bn.getBoundingClientRect() : null;   // oznámení naschvalu je taky překážka
-  const obstacles = bnr ? [{ x: (bnr.left + bnr.right) / 2, y: (bnr.top + bnr.bottom) / 2, w: bnr.width, h: bnr.height }, ...floatBoxes] : floatBoxes;
+  const obstacles = floatBoxes;
   const top = ($("hud").hidden ? 0 : $("hud").getBoundingClientRect().bottom) + 8;   // pod cedulkami, nikdy ne přes ně
   x = Math.max(w / 2 + 6, Math.min(innerWidth - w / 2 - 6, x));
   y = Math.max(top + h / 2, y);
@@ -711,7 +710,6 @@ function tryFire(now) {
   const type = Sim.FIRE_ORDER[game.fireN % 3], { x, y } = game.lastPos;
   if (!sendSabotage(type, x, y)) return;
   game.fireN++; game.charge = 0; paintCharge();
-  float(x, y - 70, `Náboj plný!<small>${Sim.SAB[type].label} letí k soupeři</small>`, "precise");
   window.__ovs.log.push({ ev: "fire", type, at: Date.now() });
 }
 function sendSabotage(type, x, y, force) {
@@ -723,17 +721,15 @@ function sendSabotage(type, x, y, force) {
   room.w.set({ ev: game.ev }, true);
   sound.send();
   shot(x, y);
+  const ch = $("chargeMe"); ch.classList.remove("fire"); void ch.offsetWidth; ch.classList.add("fire");   // pulz měřiče, bez textu
   return true;
 }
 function applySabotage(type) {
   const now = performance.now(), clock = now - game.start;
   game.lastApplied = now; game.got++;
   const who = oppName(), c = COLORS[other(room.seat)];
-  const texts = { bomba: "posílá <b>bombu navíc</b>", smouha: "posílá <b>šťávu do očí</b>", mraz: "posílá <b>mráz</b> na dva kusy" };
-  $("bannerIcon").innerHTML = ICONS[type](c);
-  $("bannerTxt").innerHTML = `${esc(who)} ${texts[type]}`;
-  $("banner").classList.add("on");
-  clearTimeout(applySabotage.t); applySabotage.t = setTimeout(() => $("banner").classList.remove("on"), 2300);
+  const ic = $("sabIcon"); ic.innerHTML = ICONS[type](c);                       // krátké bliknutí ikony u soupeřova skóre, bez textu
+  ic.classList.remove("on"); void ic.getBoundingClientRect(); ic.classList.add("on");
   const sign = $("signOpp"); sign.classList.remove("hit"); void sign.offsetWidth; sign.classList.add("hit");
   sound.incoming(); buzz([40, 40, 40]);
   if (type === "bomba") {
@@ -803,7 +799,7 @@ function hit(o, p, dx, dy, now, speed, precise) {
   if (o.kind === "bomba") {
     scene.explode(o); game.bombs++;
     addScore(Sim.POINTS.bomba);
-    float(p.x, p.y, `${Sim.POINTS.bomba}${o.it.from ? `<small>bomba od ${esc(o.it.from)}</small>` : ""}`, "bad");
+    float(p.x, p.y, `${Sim.POINTS.bomba}`, "bad");
     sound.boom();
     $("flash").classList.remove("on"); void $("flash").offsetWidth; $("flash").classList.add("on");
     if (!reduced) { document.body.classList.remove("shake"); void document.body.offsetWidth; document.body.classList.add("shake"); }
@@ -822,7 +818,7 @@ function hit(o, p, dx, dy, now, speed, precise) {
   addCharge(o.kind === "karambola" ? Sim.CHARGE.karambola : Sim.CHARGE.cut);
   if (o.kind === "karambola") {
     const sent = sendSabotage("bomba", p.x, p.y);
-    float(p.x, p.y, `+${pts}<small>${sent ? `bomba letí k soupeři` : "karambola"}</small>`);
+    float(p.x, p.y, `+${pts}`);
     window.__ovs.log.push({ ev: "kara", sent, at: Date.now() });
   } else if (pts > 1) float(p.x, p.y, `+${pts}`);
   if (precise) {
@@ -833,7 +829,7 @@ function hit(o, p, dx, dy, now, speed, precise) {
     if (frozenHit) {
       // protiútok za dovednost: přesně rozseknutý led se vrací odesílateli jako mráz
       const sent = sendSabotage("mraz", p.x, p.y, true);
-      float(p.x, p.y - 34, `Odraženo!<small>${sent ? "mráz letí zpátky" : "led přesně"}</small>`, "precise");
+      float(p.x, p.y - 34, "Přesně!", "precise");
       window.__ovs.log.push({ ev: "reflect", sent, at: Date.now() });
     } else {
       addScore(Sim.POINTS.precise); addCharge(Sim.CHARGE.precise - Sim.CHARGE.cut);
@@ -852,7 +848,7 @@ function endStroke() {
     addScore(bonus);
     const type = Sim.sabotageFor(s.n, null);
     const sent = sendSabotage(type, s.x, s.y);
-    float(s.x, s.y - 40, `Combo ${s.n}! +${bonus}<small>${sent ? (type === "mraz" ? "mráz" : "šmouha") + ` letí k soupeři` : "naschvál se ještě nabíjí"}</small>`);
+    float(s.x, s.y - 40, `Combo ${s.n}! +${bonus}`);
     sound.combo(s.n); buzz(25);
     window.__ovs.log.push({ ev: "combo", n: s.n, sent: sent ? type : null, at: Date.now() });
   }

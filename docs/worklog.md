@@ -1,5 +1,8 @@
 # Ovocný souboj – deník
 
+## 2026-10-31 noc (Claude, hlášky o naschvalech pryč)
+Mark při hraní: hlášky („posílá bombu“, banner, „letí k soupeři“) překáží a dělají chaos. Odstraněno: banner `#banner`, texty `SAB` v `src/sim.js` (nahrazeno `SAB_TYPES`), „Náboj plný!…“, podtitulky u karamboly, comba, „Odraženo!“ (nyní „Přesně!“) a „bomba od <jméno>“. Naschvál samotný beze změny. Místo textu: bliknutí ikony naschválu na rohu soupeřovy cedulky (`#sabIcon`, 380 ms) a pulz měřiče u odesílatele (`#chargeMe.fire`, 360 ms); nic přes plochu, reduced-motion jen mění průhlednost. Testy: `feel.cjs` a `float.cjs` místo hlášek ověřují doručení (`got` + ikona bliknula, pulz u odesílatele, žádný text o naschvále, žádný banner).
+
 ## 2026-10-31 večer (Claude, design review 3 kola, push, živý test)
 Design-eye (taste lens, desktop + iPhone, oba hráči), 3 kola:
 - Kolo 1 (verdikt „skoro“, 15 nálezů): série a výsledek z pohledu druhého hráče (barvy čísel podle sedadla, „já“ vlevo i na kartě výsledku), ovoce místo fasetového low-poly hladké toon (hladké normály, 24×16, barvy po vrcholech, tmavší spodek jako tvar), kapky šťávy plochá 3–8 px kolečka bez odlesku a 8–14 na řez, plovoucí texty světlé s tmavým stínem a bez překryvu (`float()` hlídá HUD, jiné texty i banner), sázka čárkovaný razítkový rámeček bez náklonu a s mezerou, desktop výzva a přijetí jednosloupcově (480 px), setup s tlačítkem přes oba sloupce, KOPÍROVAT už neuříznuté, škála zaoblení 6/8/12, úvod přijetí ve Figtree, překlopení číslic 0,18 s, banner s min. šířkou, v menu už nevisí karambola pod visačkou. Překryv „+5“ a „Přesně!“ u karamboly opraven (`tests/float.cjs`).

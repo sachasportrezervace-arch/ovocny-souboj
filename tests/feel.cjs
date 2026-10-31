@@ -38,6 +38,11 @@ async function botStep(p, vp) {
   const A = await (await bA.newContext({ viewport: { width: 1440, height: 900 } })).newPage();
   const B = await (await bB.newContext({ ...devices["iPhone 13"] })).newPage();
   const errs = [];
+  // hlášky o naschvalech jsou pryč: sbíráme každý plovoucí text a hlídáme, že žádný nemluví o naschvále (naschvál se signalizuje jen ikonou a pulzem měřiče)
+  for (const p of [A, B]) await p.addInitScript(() => {
+    window.__txt = [];
+    document.addEventListener("DOMContentLoaded", () => new MutationObserver(ms => { for (const m of ms) for (const n of m.addedNodes) if (n.nodeType === 1 && n.classList.contains("float")) window.__txt.push(n.textContent); }).observe(document.getElementById("floats"), { childList: true }));
+  });
   for (const [n, p] of [["A", A], ["B", B]]) { p.on("pageerror", e => errs.push(n + ": " + e.message)); p.on("console", m => m.type() === "error" && errs.push(n + " console: " + m.text().slice(0, 160))); }
   await A.goto(BASE + "?kolo=" + ROUND);
   await A.fill("#fMe", "Mark"); await A.fill("#fOpp", "Radka"); await A.click("#bCreate");
@@ -51,7 +56,7 @@ async function botStep(p, vp) {
   await Promise.all([A, B].map(p => p.waitForFunction(() => __ovs.state().phase === "play", null, { timeout: 30000 })));
   const t0 = Date.now(), vpA = A.viewportSize(), vpB = B.viewportSize();
   const shots = { zacatek: 6, pulka: ROUND / 2, konec: ROUND - 5 }, done = {};
-  let sabShot = false;
+  const sabShot = { A: false, B: false }, seen = { A: { icon: 0, pulse: 0, dur: 0, durPulse: 0 }, B: { icon: 0, pulse: 0, dur: 0, durPulse: 0 } };
   const smear = { A: { ms: 0, cover: false }, B: { ms: 0, cover: false } };
   let last = Date.now();
   const watch = async (p, k) => {
@@ -62,7 +67,10 @@ async function botStep(p, vp) {
         const g = el.querySelector("svg g")?.getBoundingClientRect();
         if (g) for (const q of ["#signMe", "#signOpp", ".clock"]) { const s = document.querySelector(q).getBoundingClientRect(); if (g.left < s.right && g.right > s.left && g.top < s.bottom && g.bottom > s.top) cover = true; }
       }
-      return { on, cover, banner: document.getElementById("banner").classList.contains("on") };
+      const dur = e => { const a = e.getAnimations()[0]; return a ? a.effect.getTiming().duration : 0; };
+      const ic = document.getElementById("sabIcon"), ch = document.getElementById("chargeMe");
+      const icon = ic.classList.contains("on") && ic.getAnimations().length > 0, pulse = ch.classList.contains("fire") && ch.getAnimations().length > 0;
+      return { on, cover, icon, pulse, iconMs: icon ? dur(ic) : 0, pulseMs: pulse ? dur(ch) : 0 };
     });
     return r;
   };
@@ -74,7 +82,14 @@ async function botStep(p, vp) {
     for (const [k, p] of [["A", A], ["B", B]]) {
       const r = await watch(p, k);
       if (r.on) { smear[k].ms += dt; if (r.cover) smear[k].cover = true; }
-      if (r.banner && !sabShot && el > 3) { sabShot = true; await Promise.all([snap(A, "feel-desktop-hra-sabotaz"), snap(B, "feel-iphone-hra-sabotaz")]); }
+      if (r.icon) { seen[k].icon++; seen[k].dur = Math.max(seen[k].dur, r.iconMs); }
+      if (r.pulse) { seen[k].pulse++; seen[k].durPulse = Math.max(seen[k].durPulse, r.pulseMs); }
+      if (r.icon && !sabShot[k] && el > 3) {   // snímek v okamžiku bliknutí ikony (animaci na chvíli zastavíme na vrcholu a pak dokončíme)
+        sabShot[k] = true;
+        await p.evaluate(() => document.getElementById("sabIcon").getAnimations().forEach(a => { a.pause(); a.currentTime = 120; }));
+        await snap(p, k === "A" ? "feel-desktop-hra-sabotaz" : "feel-iphone-hra-sabotaz");
+        await p.evaluate(() => document.getElementById("sabIcon").getAnimations().forEach(a => a.finish()));
+      }
     }
     await sleep(150);
   }
@@ -84,7 +99,7 @@ async function botStep(p, vp) {
   await Promise.all([snap(A, "feel-desktop-vysledek"), snap(B, "feel-iphone-vysledek")]);
 
   // ---- vyhodnocení ----
-  const data = await Promise.all([A, B].map(p => p.evaluate(() => ({ feel: __ovs.feel, log: __ovs.log, st: __ovs.state(), end: __ovs.log.filter(e => e.ev === "end").pop() }))));
+  const data = await Promise.all([A, B].map(p => p.evaluate(() => ({ txt: window.__txt, noBanner: !document.getElementById("banner"), feel: __ovs.feel, log: __ovs.log, st: __ovs.state(), end: __ovs.log.filter(e => e.ev === "end").pop() }))));
   const cd = data.map(d => d.log.filter(e => e.ev === "countdown").pop().at);   // čas startu kola (ms, Date.now) na každé straně
   const ms = ROUND * 1000;
   const Q = [0, 0, 0, 0], QF = [0, 0, 0, 0];
@@ -121,6 +136,13 @@ async function botStep(p, vp) {
   console.log(`fps A ${data[0].end?.stats?.avgFps} / B ${data[1].end?.stats?.avgFps}`);
   check("první naschvál souboje doručen do 10 s od startu (kdo ho pošle první, to rozhoduje karambola ve 4–6 s)", firstGot.some(v => v !== null && v <= 10), firstGot.map(v => v && v.toFixed(1)).join("/") + " s");
   check("naschvály: doručeno nejvýš tolik, kolik odešlo, a aspoň 2", data[0].log.filter(e => e.ev === "got").length + data[1].log.filter(e => e.ev === "got").length <= sends[0].length + sends[1].length + 2 && sends[0].length + sends[1].length >= 2);
+  const gotN = data.map(d => d.log.filter(e => e.ev === "got").length), sendN = sends.map(a => a.length);
+  console.log(`signalizace: ikona u soupeřova skóre zachycena A ${seen.A.icon}× / B ${seen.B.icon}× (doručeno ${gotN[0]} / ${gotN[1]}), pulz měřiče A ${seen.A.pulse}× / B ${seen.B.pulse}× (odesláno ${sendN[0]} / ${sendN[1]}), nejdelší animace ${Math.max(seen.A.dur, seen.B.dur)} / ${Math.max(seen.A.durPulse, seen.B.durPulse)} ms`);
+  check("naschvál se doručil a ikona u soupeřova skóre bliknula (každá strana, která naschvál dostala)", gotN.every((n, i) => n === 0 || seen[i ? "B" : "A"].icon > 0) && gotN.some(n => n > 0), gotN.join("/"));
+  check("bliknutí ikony ≤ 400 ms a pulz měřiče u odesílatele ≤ 400 ms", Math.max(seen.A.dur, seen.B.dur) > 0 && Math.max(seen.A.dur, seen.B.dur) <= 400 && Math.max(seen.A.durPulse, seen.B.durPulse) > 0 && Math.max(seen.A.durPulse, seen.B.durPulse) <= 400);
+  check("pulz měřiče u každého, kdo naschvál poslal", sendN.every((n, i) => n === 0 || seen[i ? "B" : "A"].pulse > 0), sendN.join("/"));
+  const allTxt = data.flatMap(d => d.txt);
+  check("žádný text o naschvále (banner pryč, plovoucí texty bez „letí/posílá/bomba od“)", data.every(d => d.noBanner) && !allTxt.some(t => /letí|posílá|podstrč|cákl|zmraz|mráz|šmouh|bomba od|nabíj|Náboj|Odraženo/i.test(t)), allTxt.length + " textů, např. " + [...new Set(allTxt)].slice(0, 6).join(" | "));
   check("přesné řezy: aspoň jeden na každé straně", precise.every(n => n >= 1), precise.join("/"));
   check("tempo: 4. čtvrtina aspoň 1,4× hustší než 1.", Q[3] >= Q[0] * 1.4, perSec(Q).join("/"));
   check("bomby jako koření: 3–16 % rozpisu (jedno semínko kolísá, průměr přes semínka ~9 %, viz tempo.mjs)", bombShare >= 0.03 && bombShare <= 0.16, (bombShare * 100).toFixed(1) + " %");

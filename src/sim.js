@@ -15,11 +15,7 @@ export const CHARGE_MAX = 18;   // měřič naschválu: řez +1, přesný řez +
 export const CHARGE = { cut: 1, precise: 3, karambola: 5 };
 export const FIRE_ORDER = ["smouha", "mraz", "bomba"];
 export const PRECISE_R = 0.25;   // přesný řez: tah projde ve vnitřní čtvrtině poloměru ovoce (počítá se na obrazovce v main.js)
-export const SAB = {
-  bomba: { send: "ti podstrčil(a) bombu", label: "bomba navíc" },
-  smouha: { send: "ti cákl(a) šťávu do očí", label: "šmouha" },
-  mraz: { send: "ti zmrazil(a) dva kusy", label: "mražené ovoce" },
-};
+export const SAB_TYPES = ["bomba", "smouha", "mraz"];   // naschvály bez textů: signalizuje je jen ikona u soupeřova skóre a pulz měřiče
 
 export function rng(seed) {
   let a = seed >>> 0;

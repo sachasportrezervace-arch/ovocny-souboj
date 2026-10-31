@@ -7,7 +7,7 @@ a hodinami, menu je papírová visačka přibitá hřebíčkem. Barevné ovoce a
 - deska `--desk-hi #4A2E1B` / `--desk #2E1C10` / `--desk-lo #150C07` (kreslí `paintBoard` v main.js: prkna s kresbou let, suky, zámky, viněta)
 - tlačítka `--tomato #C8372D` (lněný text), papír `--linen #F1E6D0`, dřevo `--wood*` jen na rámy cedulek, křída `--board #23302B`, `--chalk #F2F0E6`
 - hráči: x meruňková `#FF9A4D`, o mátová `#5FE0C3`. Barva hráče značí jen jeho cedulku, měřič naschválu, čepel a jeho naschvály
-  (pruh na podstrčené bombě, šmouha, ikona v oznámení). Nic jiného ji nepoužívá.
+  (pruh na podstrčené bombě, šmouha, ikona bliknutí u soupeřova skóre). Nic jiného ji nepoužívá.
 
 ## Deska a kontrast ovoce
 Deska je záměrně tmavá a klidná (jako ve Fruit Ninja: plocha, na které vynikne ovoce). Dřevo se kreslí jednou při resize do canvasu
@@ -17,7 +17,7 @@ stěna ×1,07); bomba má obrys teplý oranžový `#FF7A4D` a červený pás, ta
 
 ## Písmo (Google Fonts, latin-ext, česká diakritika ověřena renderem)
 - Bungee: nadpisy, čísla skóre v pevných buňkách, tlačítka
-- Caveat Brush: křída (jména na cedulkách, oznámení naschválů, sázka, „Přesně!“)
+- Caveat Brush: křída (jména na cedulkách, sázka, „Přesně!“)
 - Figtree 400/600/800: drobné UI a vstupy
 
 ## 3D (three.js r170, `src/scene.js`)
