@@ -33,11 +33,9 @@ resize();
 // pracovní deska: tmavé dřevo s jemnou kresbou let, zámky prken a vinětou. Kreslí se jednou při resize (canvas 2D,
 // deterministicky ze semínka), žádné obrázky. Klidná plocha, na které vynikne barevné ovoce a šťáva.
 const boardCv = $("board");
-function paintBoard() {
-  const w = innerWidth, h = innerHeight, pr = Math.max(0.6, Math.min(devicePixelRatio || 1, 1.5, Math.sqrt(2.4e6 / (w * h))));
-  boardCv.width = Math.round(w * pr); boardCv.height = Math.round(h * pr);
-  const g = boardCv.getContext("2d"), r = Sim.rng(20261031);
-  g.setTransform(pr, 0, 0, pr, 0, 0);
+let curTheme = "orech";
+// walnut = původní ořechová deska (nic se na ní nezměnilo), ostatní desky jsou stejně klidné a tmavé, aby na nich vynikla barva ovoce
+function walnut(g, w, h, r) {
   const bandH = Math.max(110, Math.min(190, h / 5)), nB = Math.ceil(h / bandH);
   for (let b = 0; b < nB; b++) {
     const y0 = b * bandH, tone = (r() - 0.5) * 0.045;
@@ -67,10 +65,93 @@ function paintBoard() {
     g.fillStyle = "rgba(8,4,1,.7)"; g.fillRect(0, y0 + bandH - 2, w, 2);
     g.fillStyle = "rgba(190,130,80,.07)"; g.fillRect(0, y0 + bandH, w, 1);
   }
+}
+// břidlice: velké desky s drobnými škrábanci a křídovými tečkami, chladná šedomodrá
+function slate(g, w, h, r) {
+  g.fillStyle = "hsl(212 11% 15%)"; g.fillRect(0, 0, w, h);
+  const rowH = Math.max(120, Math.min(210, h / 4.2));
+  for (let y = 0; y < h; y += rowH) {
+    for (let x = -r() * 200; x < w;) {
+      const sw = 220 + r() * 220, tone = (r() - 0.5) * 5;
+      g.fillStyle = `hsl(212 ${10 + r() * 4}% ${15 + tone}%)`; g.fillRect(x, y, sw, rowH);
+      for (let i = 0; i < 5; i++) {
+        g.strokeStyle = r() < 0.5 ? "rgba(220,235,255,.05)" : "rgba(0,0,0,.2)"; g.lineWidth = 0.7 + r();
+        const sx = x + r() * sw, sy = y + r() * rowH; g.beginPath(); g.moveTo(sx, sy); g.lineTo(sx + (r() - 0.5) * 90, sy + (r() - 0.5) * 30); g.stroke();
+      }
+      g.fillStyle = "rgba(235,242,255,.06)";
+      for (let i = 0; i < 9; i++) { g.beginPath(); g.arc(x + r() * sw, y + r() * rowH, 0.8 + r() * 1.4, 0, 6.283); g.fill(); }
+      g.fillStyle = "rgba(0,0,0,.6)"; g.fillRect(x + sw - 2, y, 2, rowH); g.fillStyle = "rgba(190,210,235,.06)"; g.fillRect(x + sw, y, 1, rowH);
+      x += sw;
+    }
+    g.fillStyle = "rgba(0,0,0,.6)"; g.fillRect(0, y + rowH - 2, w, 2); g.fillStyle = "rgba(190,210,235,.06)"; g.fillRect(0, y + rowH, w, 1);
+  }
+}
+// ubrus: tmavé vínové piknikové kostky, jemná tkanina a dva měkké záhyby
+function cloth(g, w, h, r) {
+  const s = Math.max(46, Math.min(80, w / 9)), ox = -r() * s * 2, oy = -r() * s * 2;
+  g.fillStyle = "#241214"; g.fillRect(0, 0, w, h);
+  g.fillStyle = "rgba(170,56,52,.2)";
+  for (let x = ox; x < w; x += s * 2) g.fillRect(x, 0, s, h);
+  for (let y = oy; y < h; y += s * 2) g.fillRect(0, y, w, s);
+  g.strokeStyle = "rgba(255,235,225,.03)"; g.lineWidth = 1;
+  for (let y = 0; y < h; y += 4) { g.beginPath(); g.moveTo(0, y + 0.5); g.lineTo(w, y + 0.5); g.stroke(); }
+  for (let x = 0; x < w; x += 4) { g.beginPath(); g.moveTo(x + 0.5, 0); g.lineTo(x + 0.5, h); g.stroke(); }
+  for (let i = 0; i < 2; i++) {
+    const x0 = w * (0.2 + 0.5 * r()), gr = g.createLinearGradient(x0 - 90, 0, x0 + 90, h * 0.3);
+    gr.addColorStop(0, "rgba(0,0,0,0)"); gr.addColorStop(0.5, "rgba(0,0,0,.22)"); gr.addColorStop(1, "rgba(0,0,0,0)");
+    g.fillStyle = gr; g.fillRect(0, 0, w, h);
+  }
+}
+// modré kachle: dlouhé obkladačky s odsazením řad, skosená hrana a občas drobný čtyřlístek
+function tiles(g, w, h, r) {
+  const th = Math.max(54, Math.min(96, h / 9)), tw = th * 2;
+  g.fillStyle = "#0D111E"; g.fillRect(0, 0, w, h);
+  for (let y = 0, row = 0; y < h; y += th, row++) {
+    for (let x = row % 2 ? -tw / 2 : 0; x < w; x += tw) {
+      g.fillStyle = `hsl(224 ${22 + r() * 6}% ${16 + (r() - 0.5) * 3.5}%)`; g.fillRect(x + 2, y + 2, tw - 4, th - 4);
+      g.fillStyle = "rgba(190,205,255,.08)"; g.fillRect(x + 2, y + 2, tw - 4, 2);
+      g.fillStyle = "rgba(0,0,0,.28)"; g.fillRect(x + 2, y + th - 5, tw - 4, 3);
+      if (r() < 0.16) {
+        g.fillStyle = "rgba(190,210,255,.07)"; const cx = x + tw / 2, cy = y + th / 2, p = th * 0.13;
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { g.beginPath(); g.arc(cx + dx * p, cy + dy * p, p * 0.8, 0, 6.283); g.fill(); }
+      }
+    }
+  }
+}
+// podzim: ořechová deska s rozházenými plochými listy
+function autumn(g, w, h, r) {
+  walnut(g, w, h, r);
+  const cols = ["hsl(18 62% 27%)", "hsl(32 72% 31%)", "hsl(8 56% 25%)", "hsl(44 62% 29%)"], n = Math.round(12 + w * h / 80000);
+  for (let i = 0; i < n; i++) {
+    const x = r() * w, y = r() * h, L = 38 + r() * 40, a = r() * 6.283;
+    g.save(); g.translate(x, y); g.rotate(a); g.globalAlpha = 0.72; g.fillStyle = cols[Math.floor(r() * cols.length)];
+    g.beginPath(); g.moveTo(0, -L / 2); g.quadraticCurveTo(L * 0.5, -L * 0.1, 0, L / 2); g.quadraticCurveTo(-L * 0.5, -L * 0.1, 0, -L / 2); g.fill();
+    g.strokeStyle = "rgba(20,8,2,.4)"; g.lineWidth = 1.4; g.beginPath(); g.moveTo(0, -L / 2); g.lineTo(0, L / 2 + 6); g.stroke();
+    g.restore();
+  }
+}
+const BOARDS = { orech: walnut, bridlice: slate, ubrus: cloth, dlazdice: tiles, podzim: autumn };
+function paintBoard(theme = curTheme) {
+  curTheme = BOARDS[theme] ? theme : "orech";
+  const w = innerWidth, h = innerHeight, pr = Math.max(0.6, Math.min(devicePixelRatio || 1, 1.5, Math.sqrt(2.4e6 / (w * h))));
+  boardCv.width = Math.round(w * pr); boardCv.height = Math.round(h * pr);
+  const g = boardCv.getContext("2d"), r = Sim.rng(20261031 + Sim.THEMES.indexOf(curTheme) * 101);
+  g.setTransform(pr, 0, 0, pr, 0, 0);
+  BOARDS[curTheme](g, w, h, r);
   // viněta: střed o chlup světlejší, okraje do tmy
   const R = Math.hypot(w, h) * 0.62, v = g.createRadialGradient(w / 2, h * 0.46, R * 0.12, w / 2, h * 0.46, R);
   v.addColorStop(0, "rgba(255,190,120,.09)"); v.addColorStop(0.5, "rgba(0,0,0,0)"); v.addColorStop(1, "rgba(0,0,0,.62)");
   g.fillStyle = v; g.fillRect(0, 0, w, h);
+  document.body.dataset.theme = curTheme;
+}
+// deska se mění s novým kolem: plynule zhasne, přemaluje a rozsvítí (odpočet má 3 s)
+let themeT = 0;
+function setTheme(id) {
+  if (id === curTheme) return;
+  clearTimeout(themeT);
+  if (reduced) { paintBoard(id); return; }
+  boardCv.style.opacity = "0";
+  themeT = setTimeout(() => { paintBoard(id); boardCv.style.opacity = "1"; }, 360);
 }
 let boardRaf = 0;
 addEventListener("resize", () => { cancelAnimationFrame(boardRaf); boardRaf = requestAnimationFrame(paintBoard); });
@@ -78,7 +159,7 @@ paintBoard();
 
 // skvrny šťávy na desce: pár jemných kaluží, které za pár vteřin zmizí
 const stainCv = $("stains"), sctx = stainCv.getContext("2d"), stains = [];
-const JUICE = { meloun: "#F0505A", pomeranc: "#FFA02B", svestka: "#9B5BD4", citron: "#FFE45C", jablko: "#FFF1B8", kiwi: "#A6D654", karambola: "#FFD84A" };
+const JUICE = { meloun: "#F0505A", pomeranc: "#FFA02B", svestka: "#9B5BD4", citron: "#FFE45C", jablko: "#FFF1B8", kiwi: "#A6D654", karambola: "#FFD84A", zlate: "#FFD84A" };
 function addStain(x, y, kind) {
   if (stains.length >= 12) stains.shift();
   const r = 20 + Math.random() * 16;
@@ -203,6 +284,7 @@ const sound = (() => {
     incoming() { if (!ok()) return; tone(392, 0.09, 0.12, "triangle"); tone(311, 0.16, 0.12, "triangle", 0.1); },
     send() { if (!ok()) return; tone(660, 0.12, 0.08, "sine", 0, 1320); },
     miss() { if (!ok()) return; hiss(260, 1.2, 0.12, 0.14, "lowpass"); tone(196, 0.18, 0.13, "triangle", 0, 110); },
+    finale() { if (!ok()) return; [0, 4, 7, 12, 16].forEach((s, i) => tone(392 * 2 ** (s / 12), 0.22, 0.1, "triangle", i * 0.06)); hiss(2400, 1, 0.08, 0.4, "highpass"); },
     end() { if (!ok()) return; [0, 3, 7].forEach((s, i) => tone(392 * 2 ** (s / 12), 0.5, 0.09, "triangle", i * 0.12)); },
   };
 })();
@@ -216,6 +298,7 @@ const game = {
   sched: [], next: 0, live: [], score: 0, start: 0, end: 0, rl: Sim.ROUND_MS, doneAt: 0, waitHold: 0, ev: [], lastSend: -1e9,
   queue: [], lastApplied: -1e9, stroke: null, frozenLeft: 0, cuts: 0, bombs: 0, sent: 0, got: 0,
   precise: 0, charge: 0, fireN: 0, lastPos: { x: 0, y: 0 },
+  mod: null, finAt: Infinity, fin0: false, scoreFin: 0, boost: false, sig: null, blade: 0,   // modifikátor kola, začátek finále (ms kola), dohánění, rozpis pro test, čepel
   md: "cas", tg: Sim.TARGET, lives: Sim.LIVES, fin: null, oppF: null, endWhy: null,   // mód kola, cíl, životy, můj a soupeřův čas cíle/smrti
 };
 const stats = { frames: 0, time: 0, worst: [], samples: [] };
@@ -312,8 +395,8 @@ const cols = o => `<div class="cols">${["head", "intro", "form", "how", "deco", 
 const DECO = `<svg class="deco" viewBox="0 0 220 96" aria-hidden="true"><g transform="rotate(-14 110 58)"><path d="M50 56a60 60 0 0 0 120 0z" fill="#1D5428"/><path d="M56 56a54 54 0 0 0 108 0z" fill="#2F7D3A"/><path d="M62 56a48 48 0 0 0 96 0z" fill="#F1E6D0"/><path d="M66 56a44 44 0 0 0 88 0z" fill="#E8414B"/><g fill="#1B1A17"><ellipse cx="92" cy="78" rx="3.2" ry="5.5"/><ellipse cx="110" cy="88" rx="3.2" ry="5.5"/><ellipse cx="128" cy="78" rx="3.2" ry="5.5"/></g></g><path d="M18 20L206 62" stroke="#1B1A17" stroke-opacity=".25" stroke-width="9" stroke-linecap="round"/><path d="M18 20L206 62" stroke="#C8372D" stroke-width="3.5" stroke-linecap="round"/><circle cx="168" cy="22" r="4" fill="#C8372D"/><circle cx="186" cy="12" r="2.6" fill="#C8372D"/></svg>`;
 const howEnd = (md, ms, tg) => md === "zavod" ? `Závod: kdo první nasbírá ${tg} bodů, bere souboj a oběma kolo skončí. Když to do ${fmtClock(Math.round(ms / 1000))} nikdo nedá, rozhodne skóre.`
   : md === "zivoty" ? `Tři životy: propadlé ovoce nebo seknutá bomba bere život a tempo pořád zrychluje. Vyhrává, kdo vydrží déle; když vydržíte oba ${lenAcc(ms)}, rozhodne skóre.`
-  : `Kolo na ${lenAcc(ms)}, vyhrává vyšší skóre.`;
-const howText = (md, ms, tg) => `Táhni přes ovoce, <b>bomby nesekej</b>. Řez blízko středu dá <b>Přesně!</b> a <span class="pts">+2 body</span>. Řezy nabíjejí měřič pod tvým jménem, plný pošle soupeři naschvál (šmouhu, mráz nebo bombu); combo 3+ a karambola ho pošlou hned, přesně rozseknutý led ho vrátí. ${howEnd(md, ms, tg)}`;
+  : `Kolo na ${lenAcc(ms)}, vyhrává vyšší skóre. Posledních pár vteřin je finále, kde se body sypou.`;
+const howText = (md, ms, tg) => `Táhni přes ovoce, <b>bomby nesekej</b>. Řez blízko středu dá <b>Přesně!</b> a <span class="pts">+2 body</span>. Řezy nabíjejí měřič pod tvým jménem, plný pošle soupeři naschvál (šmouhu, mráz nebo bombu); combo 3+ a karambola ho pošlou hned, přesně rozseknutý led ho vrátí. Kdo je pozadu, nabíjí rychleji. Znamení v hodinách ukazuje zvláštnost kola (zlaté ovoce, řady, obří meloun, měsíční tíže). ${howEnd(md, ms, tg)}`;
 const howTo = (md, ms, tg, id = "") => `<details class="how"${id ? ` id="${id}"` : ""}><summary>Jak se hraje</summary><p>${howText(md, ms, tg)}</p></details>`;
 
 function viewSetup() {
@@ -586,7 +669,8 @@ function decide(force) {
 let starting = false;
 async function startNext(k) {
   starting = true;
-  const sd = (crypto.getRandomValues(new Uint32Array(1))[0] >>> 0) || 1;
+  // semínko dalšího kola: modifikátor i deska jiné než v předchozím kole (stejné pro oba, čtou ho z g.sd)
+  const sd = Sim.pickSeed(room.meta.g.sd || 0, () => crypto.getRandomValues(new Uint32Array(1))[0] / 4294967296);
   try {
     const r = await Net.commitMeta(room.id, m => {
       if (!m || (m.g.go || 0) >= k) return null;
@@ -648,7 +732,7 @@ function paintLives(el, n, pop) {
 }
 
 function viewLobby() {
-  phase = "lobby"; $("hud").hidden = false; hudNames();
+  phase = "lobby"; $("hud").hidden = false; hudNames(); setModIcon(null);
   const g = room.meta.g, d = mine(), next = 11;
   const md = Sim.modeOf(g.md);
   K = 0; $("timer").textContent = fmtClock(md === "cas" ? Math.round(g.rl / 1000) : 0); $("timer").classList.remove("low");
@@ -695,6 +779,7 @@ function viewWaiting() {
 function viewResult(hx, ho) {
   phase = "result"; $("hud").hidden = false; hudNames();
   const go = room.meta.g.go, m = Sim.mOf(go), st = hudSeries(hx, ho, m), me = room.seat, d = mine();
+  game.blade = myTier();
   const r = st.rounds[0] || { x: hx[go], o: ho[go], w: null }, md = st.md, g = room.meta.g, o = room.opp || seatDoc();
   cells($("cellsMe"), me === "x" ? r.x : r.o); cells($("cellsOpp"), me === "x" ? r.o : r.x);
   paintLives($("livesMe"), d.lv == null ? Sim.LIVES : d.lv); paintLives($("livesOpp"), o.lv == null ? Sim.LIVES : o.lv);
@@ -719,7 +804,11 @@ function viewResult(hx, ho) {
   const sub = seat => md === "zivoty" ? `${r[seat]} ${bodu(r[seat])}`
     : md === "zavod" && r["f" + seat] != null ? `v cíli za ${fmtClock(sec(r["f" + seat]))}`
     : st.winner ? (st.winner === seat ? "bere souboj" : "chce odvetu") : "remíza";
-  const side = (seat, name) => `<div class="p ${seat}${st.winner === seat ? " win" : ""}"><div class="n">${esc(name)}</div><div class="s">${big(seat)}</div><div class="st">${sub(seat)}</div></div>`;
+  // čepel odemčená výhrami v sérii: pod skóre vzorek stopy, u mé nové se krátce vyskočí
+  const seenKey = "ovs-seen-" + room.id, seen = +Net.store.get(seenKey) || 0, myT = Sim.bladeTier(winsOf(me));
+  if (myT !== seen) Net.store.set(seenKey, String(myT));
+  const bl = seat => { const tr = Sim.bladeTier(winsOf(seat)); return tr ? `<div class="bl${seat === me && tr > seen ? " new" : ""}" data-tier="${tr}">${bladeSvg(tr, COLORS[seat])}</div>` : ""; };
+  const side = (seat, name) => `<div class="p ${seat}${st.winner === seat ? " win" : ""}"><div class="n">${esc(name)}</div><div class="s">${big(seat)}</div><div class="st">${sub(seat)}</div>${bl(seat)}</div>`;
   const oppRdy = room.opp && room.opp.rdy >= nextK;
   const stake = g.st ? `<div class="stake">${st.winner ? `${wName(other(st.winner))} platí: ${esc(g.st)}` : `Sázka (${esc(g.st)}) zůstává ve hře`}</div>` : "";
   const hint = oppRdy ? `${esc(oppName())} už čeká na tebe.` : rdy ? "Odpočet naskočí, až klepne i soupeř. Nechce se mu? Pošli odkaz a vraťte se později." : "";
@@ -755,12 +844,76 @@ async function setMode(b) {
   decide(false);
 }
 
+// ---------- zvláštnost kola, finále, čepel ----------
+// znamení modifikátoru: kulatá cedulka (křída s dřevěným lemem) s plochým obrázkem; v hodinách HUD a na pár vteřin velká při odpočtu, bez textu
+const COIN = '<circle cx="20" cy="20" r="18.5" fill="#23302B" stroke="#8A5A33" stroke-width="3"/>';
+const MOD_ICONS = {
+  zlate: COIN + '<ellipse cx="20" cy="24" rx="10" ry="9.4" fill="#FFD23F"/><path d="M20 15v-4" stroke="#8A5A2B" stroke-width="2.2" stroke-linecap="round"/><path d="M21 14c4-4 8-2 8-2s-1 5-6 5z" fill="#4E9B3A"/><path d="M11 9l1.5 3.3L16 14l-3.5 1.6L11 19l-1.5-3.4L6 14l3.5-1.7z" fill="#FFF3B0"/><path d="M15 21q2-3 5-3" stroke="#FFF3B0" stroke-width="1.6" fill="none" stroke-linecap="round"/>',
+  rady: COIN + '<g stroke="#F1E6D0" stroke-opacity=".5" stroke-width="1.6" stroke-linecap="round"><path d="M5 31L35 9"/></g><circle cx="9" cy="27" r="3.8" fill="#FF9419"/><circle cx="15" cy="23" r="3.8" fill="#FFE45C"/><circle cx="21" cy="19" r="3.8" fill="#E8414B"/><circle cx="27" cy="15" r="3.8" fill="#9B5BD4"/><circle cx="33" cy="11" r="3.8" fill="#8FC63F"/>',
+  obri: COIN + '<circle cx="20" cy="21" r="12.5" fill="#2F7D3A"/><path d="M12 14q-4 7 2 15M20 9q-4 12 0 24M28 14q4 7-2 15" stroke="#1D5428" stroke-width="2.4" fill="none" stroke-linecap="round"/><path d="M8 10L32 33" stroke="#F1E6D0" stroke-width="3.6" stroke-linecap="round"/><path d="M8 10L32 33" stroke="#E8414B" stroke-width="2" stroke-linecap="round"/>',
+  mesic: COIN + '<path d="M24 7.5a12.5 12.5 0 1 0 8 19.5 10.5 10.5 0 0 1-8-19.5z" fill="#F6EBD3"/><circle cx="25.5" cy="25" r="3.8" fill="#FF9419"/><circle cx="31" cy="14" r="1.4" fill="#F6EBD3"/><circle cx="12" cy="31" r="1.2" fill="#F6EBD3"/>',
+};
+function setModIcon(mod) {
+  const el = $("modIcon");
+  el.hidden = !mod; el.dataset.mod = mod || "";
+  el.innerHTML = mod ? MOD_ICONS[mod] : "";
+}
+function showMod(mod) {
+  setModIcon(mod);
+  const big = $("modBig");
+  big.innerHTML = `<svg viewBox="0 0 40 40">${MOD_ICONS[mod]}</svg>`; big.dataset.mod = mod;
+  big.classList.remove("off"); void big.offsetWidth; big.classList.add("on");
+}
+const hideModBig = () => { const b = $("modBig"); if (b.classList.contains("on")) { b.classList.remove("on"); b.classList.add("off"); } };
+// otisk rozpisu pro testy: počet a druhy kusů, počet finálových a obřích, hash (oba hráči musí mít totéž)
+function schedSig(s) {
+  const kinds = {}; let h = 5381;
+  for (const it of s) {
+    kinds[it.kind] = (kinds[it.kind] || 0) + 1;
+    const str = it.t + it.kind + it.u.toFixed(4) + it.apex.toFixed(3) + (it.gm || 1) + (it.hp || 0) + (it.fin ? "F" : "");
+    for (let i = 0; i < str.length; i++) h = (Math.imul(h, 33) ^ str.charCodeAt(i)) >>> 0;
+  }
+  return { n: s.length, kinds, hash: h, fin: s.filter(i => i.fin).length, big: s.filter(i => i.hp).length, moon: s.some(i => i.gm && i.gm !== 1 && !i.fin) };
+}
+// finále: kolo na čas, posledních ~8,6 s; nová deska se rozsvítí teplem, zazní fanfára a „Finále!“ ve stylu „Sekej!“, první vlna plave pomalu
+function startFinale(clock) {
+  game.fin0 = true; game.scoreFin = game.score; game.queue.length = 0;
+  document.body.classList.add("finale");
+  $("count").innerHTML = `<span class="go">Finále!</span>`;
+  setTimeout(() => { if (phase === "play") $("count").innerHTML = ""; }, 900);
+  sound.finale(); buzz([30, 40, 30]);
+  window.__ovs.log.push({ ev: "finale", clock: Math.round(clock), at: Date.now(), score: game.score });
+}
+// výhry v sérii (z historie skóre obou hráčů): z nich se odvodí čepel; nejvyšší dosažená se pamatuje v localStorage (po znovunačtení stránky ještě nemusí být soupeřův doc)
+function winsOf(seat) { const [hx, ho] = hists(), ser = Sim.series(hx, ho, histEx()); return seat === "x" ? ser[0] : ser[1]; }
+function myTier() {
+  const w = winsOf(room.seat), key = "ovs-wins-" + room.id, c = +Net.store.get(key) || 0;
+  if (w > c) Net.store.set(key, String(w));
+  return Sim.bladeTier(Math.max(w, c));
+}
+// vzorek čepele na výsledku (stejný vzhled jako ve hře, plochý vektor)
+function bladeSvg(tier, c) {
+  if (!tier) return "";
+  const P = "M5 17Q28 3 75 11";
+  const halo = tier === 3 ? "#FFC93C" : tier === 4 ? "url(#bg)" : c, core = tier === 3 ? "#FFF4C2" : "#FFFCF2";
+  let g = tier === 4 ? '<defs><linearGradient id="bg" x1="0" x2="1"><stop offset="0" stop-color="#FF6B6B"/><stop offset=".25" stop-color="#FFD84A"/><stop offset=".5" stop-color="#5FE0C3"/><stop offset=".75" stop-color="#5BA8FF"/><stop offset="1" stop-color="#C77DFF"/></linearGradient></defs>' : "";
+  if (tier === 2) g += `<path d="M5 13Q28 0 75 7" stroke="${c}" stroke-width="3.2" fill="none" stroke-linecap="round"/><path d="M5 21Q28 8 75 15" stroke="${c}" stroke-width="3.2" fill="none" stroke-linecap="round"/><path d="M5 13Q28 0 75 7M5 21Q28 8 75 15" stroke="#FFFCF2" stroke-width="1.2" fill="none" stroke-linecap="round"/>`;
+  else g += `<path d="${P}" stroke="${halo}" stroke-opacity=".55" stroke-width="9" fill="none" stroke-linecap="round"/><path d="${P}" stroke="${core}" stroke-width="3.4" fill="none" stroke-linecap="round"/>`;
+  if (tier === 1) g += `<g fill="${c}"><circle cx="22" cy="6" r="2"/><circle cx="40" cy="17" r="2.3"/><circle cx="55" cy="4" r="1.7"/><circle cx="67" cy="17" r="2"/></g>`;
+  if (tier === 4) g += '<path d="M75 3l2.2 5 5.3.4-4 3.6 1.3 5.2-4.8-2.8-4.8 2.8 1.3-5.2-4-3.6 5.3-.4z" fill="#FFF4C2"/>';
+  return `<svg viewBox="0 0 88 22" aria-hidden="true">${g}</svg>`;
+}
+
 // ---------- kolo ----------
 function beginCountdown(k, seed, rl, delay, md) {
   if (phase === "count" || phase === "play") return;
   K = k; phase = "count";
   game.rl = rl || Sim.ROUND_MS;
-  game.sched = Sim.schedule(seed, game.rl).map(it => ({ ...it }));
+  const mdm = Sim.modeOf(md);
+  game.sched = Sim.roundSchedule(seed, game.rl, mdm).map(it => ({ ...it }));   // základ ze semínka + modifikátor kola + finále, stejné pro oba
+  game.mod = Sim.modOf(seed); game.sig = schedSig(game.sched); game.fin0 = false; game.scoreFin = 0; game.finCuts = 0;
+  game.finAt = Sim.hasFinale(mdm, game.rl) ? Sim.finaleStart(game.rl) : Infinity;
+  document.body.classList.remove("finale"); setBoost(false); game.blade = myTier(); setTheme(Sim.themeOf(seed)); showMod(game.mod);
   game.next = 0; game.score = 0; game.ev = []; game.queue = []; game.lastSend = -1e9; game.lastApplied = -1e9;
   game.stroke = null; game.cuts = 0; game.bombs = 0; game.sent = 0; game.got = 0; game.doneAt = 0; game.waitHold = 0;
   game.precise = 0; game.charge = 0; game.fireN = 0; paintCharge(); window.__ovs.feel = { spawns: [], vis: [] };
@@ -785,6 +938,7 @@ function beginCountdown(k, seed, rl, delay, md) {
 }
 function finishRound() {
   phase = "wait";
+  document.body.classList.remove("finale"); setBoost(false); hideModBig();
   const d = mine();
   room.w.set({ sc: game.score, h: { ...d.h, [K]: game.score }, ...(game.fin != null ? { f: { ...(d.f || {}), [K]: game.fin } } : {}) }, true);
   sound.end(); buzz([70, 50, 140]);
@@ -792,7 +946,7 @@ function finishRound() {
   for (const o of game.live) scene.remove(o); game.live = [];
   $("count").innerHTML = `<span class="go">${game.endWhy === "cil" ? "V cíli!" : "Konec!"}</span>`;
   setTimeout(() => { if (phase !== "count") $("count").innerHTML = ""; }, 900);
-  window.__ovs.log.push({ ev: "end", k: K, md: game.md, why: game.endWhy || "cas", fin: game.fin, score: game.score, at: Date.now(), stats: fpsStats() });
+  window.__ovs.log.push({ ev: "end", k: K, md: game.md, why: game.endWhy || "cas", fin: game.fin, score: game.score, at: Date.now(), mod: game.mod, scoreFin: game.scoreFin, fin0: game.fin0, finCuts: game.finCuts || 0, stats: fpsStats() });
   decide(false);
   startPoll();
 }
@@ -821,7 +975,23 @@ function paintCharge() {
   el.firstElementChild.style.width = Math.min(100, game.charge / Sim.CHARGE_MAX * 100) + "%";
   el.classList.toggle("full", full);
 }
-function addCharge(n) { game.charge = Math.min(Sim.CHARGE_MAX, game.charge + n); paintCharge(); }
+// dohánění: kdo je výrazně pozadu (podle soupeřova živého skóre, čteného se zpožděním ~0,5 s), nabíjí měřič dvakrát rychleji; vidět je to jen na měřiči
+function addCharge(n) {
+  const m = game.boost ? Sim.BOOST.mul : 1, cl = window.__ovs.chargeLog;
+  game.charge = Math.min(Sim.CHARGE_MAX, game.charge + n * m); paintCharge();
+  cl.push([n, n * m, game.boost]); if (cl.length > 800) cl.shift();
+}
+function setBoost(on) {
+  if (game.boost === on) return;
+  game.boost = on;
+  $("chargeMe").classList.toggle("boost", on); $("signMe").classList.toggle("boost", on);
+  window.__ovs.log.push({ ev: "boost", on, score: game.score, opp: room.opp ? room.opp.sc : null, at: Date.now() });
+}
+function updateBoost() {
+  const o = room.opp;
+  if (game.fin0 || !o || o.k !== K) { setBoost(false); return; }
+  setBoost(Sim.boostNext(game.boost, game.md, game.score, o.sc || 0, game.lives, o.lv == null ? Sim.LIVES : o.lv));
+}
 function tryFire(now) {
   if (game.charge < Sim.CHARGE_MAX || now - game.lastSend < 2500) return;
   const type = Sim.FIRE_ORDER[game.fireN % 3], { x, y } = game.lastPos;
@@ -830,6 +1000,7 @@ function tryFire(now) {
   window.__ovs.log.push({ ev: "fire", type, at: Date.now() });
 }
 function sendSabotage(type, x, y, force) {
+  if (game.fin0) return false;   // finále je čistý sprint o body
   const now = performance.now();
   if (!force && now - game.lastSend < 2500) return false;
   game.lastSend = now; game.sent++;
@@ -850,8 +1021,7 @@ function applySabotage(type) {
   const sign = $("signOpp"); sign.classList.remove("hit"); void sign.offsetWidth; sign.classList.add("hit");
   sound.incoming(); buzz([40, 40, 40]);
   if (type === "bomba") {
-    const u = (Math.random() * 2 - 1) * 0.6;
-    game.sched.push({ id: 1000 + game.got, t: clock + 750, kind: "bomba", u, vu: -u * 0.4, apex: 3 + Math.random() * 4, spin: [0, 0, 1, 2], band: c, from: who });
+    game.sched.push({ ...Sim.sabotageBomb(game.sched, clock + 750), id: 1000 + game.got, spin: [0, 0, 1, 2], band: c, from: who });   // dráha nejdál od ostatních kusů
     game.sched.sort((a, b) => a.t - b.t);
     game.next = Math.min(game.next, game.sched.findIndex(it => it.t > clock - 1));
     if (game.next < 0) game.next = game.sched.length - 1;
@@ -859,7 +1029,7 @@ function applySabotage(type) {
     smear(c);
   } else {
     let n = 0;
-    for (const it of game.sched) if (it.t > clock + 400 && it.kind !== "bomba" && it.kind !== "karambola" && !it.frozen && !it.spawned && n < 2) { it.frozen = true; n++; }
+    for (const it of game.sched) if (it.t > clock + 400 && it.kind !== "bomba" && it.kind !== "karambola" && it.kind !== "zlate" && !it.hp && !it.fin && !it.frozen && !it.spawned && n < 2) { it.frozen = true; n++; }
   }
   window.__ovs.log.push({ ev: "got", type, at: Date.now() });
 }
@@ -879,23 +1049,33 @@ function smear(c) {
 
 // ---------- sekání ----------
 let trail = [], pointerDown = false, lastPt = null;
-function cutTest(ax, ay, bx, by, now) {
+// čas události ukazatele (ms jako performance.now()); když by prohlížeč dal jiný základ, vezme se přítomnost
+const ptrTime = e => { const n = performance.now(), t = e.timeStamp; return t > 0 && Math.abs(t - n) < 250 ? t : n; };
+const gclock = t => phase === "play" || phase === "count" ? t - game.start : t;
+// střed kusu na obrazovce v čase t: kusy se mezi snímky hýbou, čepel taky, proto se pozice počítá v čase konců úsečky (ne jen z posledního snímku)
+function posOf(o, t) {
+  const z = o.g.position.z;
+  if (o.pin || !o.it) return scene.toScreen(o.g.position.x, o.g.position.y, z);
+  const p = Sim.posAt(o.it, Math.max(0, (gclock(t) - o.t0) / 1000));
+  return scene.toScreen(p.x * scene.fieldHalf, p.y, z);
+}
+// úsečka čepele a--b proti pohybující se kouli (střed z polohy v čase a.t do polohy v čase b.t): rychlý švih ani uletělý kus se nepřeskočí.
+// Ovoce má zásahovou zónu o něco větší než sám kus, bomba jen 60 % poloměru: švih mířený na sousední ovoce ji netrefí.
+function cutTest(a, b) {
+  const ax = a.x, ay = a.y, bx = b.x, by = b.y, now = b.t;
   const dx = bx - ax, dy = by - ay, len2 = dx * dx + dy * dy;
   if (len2 < 9) return;
   const speed = Math.sqrt(len2);
   for (const o of [...game.live]) {
     if (o.dead || (o.immune && now < o.immune)) continue;
-    const p = scene.toScreen(o.g.position.x, o.g.position.y);
-    const r = o.r / scene.HALF_H * scene.h / 2 * 1.15 + 6;
-    let t = ((p.x - ax) * dx + (p.y - ay) * dy) / len2;
-    t = Math.max(0, Math.min(1, t));
-    const qx = ax + dx * t - p.x, qy = ay + dy * t - p.y;
-    if (qx * qx + qy * qy > r * r) continue;
+    const p0 = posOf(o, a.t), p = posOf(o, b.t);
+    const rReal = o.r / scene.HALF_H * scene.h / 2 * scene.persp(o.g.position.z);
+    if (Sim.sweptDist(ax, ay, bx, by, p0.x, p0.y, p.x, p.y) > Sim.hitRadius(o.kind, rReal)) continue;
     // přesný řez: přímka tahu (z bodu stopy aspoň 22 px zpět, jinak z poslední úsečky) projde ve vnitřní čtvrtině poloměru
     let sx = ax, sy = ay;
     for (let i = trail.length - 1; i >= 0; i--) if (now - trail[i].t < 160 && Math.hypot(bx - trail[i].x, by - trail[i].y) >= 22) { sx = trail[i].x; sy = trail[i].y; break; }
     const lx = bx - sx, ly = by - sy, ll = Math.hypot(lx, ly) || 1;
-    const dLine = Math.abs((p.x - sx) * ly - (p.y - sy) * lx) / ll, rReal = o.r / scene.HALF_H * scene.h / 2;
+    const dLine = Math.abs((p.x - sx) * ly - (p.y - sy) * lx) / ll;
     hit(o, p, dx, -dy, now, speed, dLine <= Sim.PRECISE_R * rReal);
   }
 }
@@ -909,6 +1089,14 @@ function hit(o, p, dx, dy, now, speed, precise) {
   if (o.ice) {
     scene.crack(o); o.immune = now + 160; o.frozen2 = true; sound.crunch();
     float(p.x, p.y - 30, "křup", "");
+    return;
+  }
+  if (o.it && o.it.hp && o.hp > 1) {
+    // obří meloun: každý řez ho zmenší a vystříkne šťávu, teprve poslední ho rozpůlí
+    o.hp--; o.immune = now + 170; scene.hurt(o); game.cuts++;
+    addScore(Sim.POINTS.fruit); addCharge(Sim.CHARGE.obri); addStain(p.x, p.y, o.kind);
+    sound.squish(0.6); buzz(15);
+    window.__ovs.log.push({ ev: "giant", hp: o.hp, at: Date.now() });
     return;
   }
   o.dead = true;
@@ -930,9 +1118,12 @@ function hit(o, p, dx, dy, now, speed, precise) {
   game.lastPos = { x: p.x, y: p.y };
   addStain(p.x, p.y, o.kind);
   const frozenHit = !!o.frozen2;
-  const pts = o.kind === "karambola" ? Sim.POINTS.karambola : frozenHit ? Sim.POINTS.frozen : Sim.POINTS.fruit;
+  const giant = !!(o.it && o.it.hp), gold = o.kind === "zlate", fin = !!(o.it && o.it.fin);
+  const pts = o.kind === "karambola" ? Sim.POINTS.karambola : gold ? Sim.POINTS.zlate : giant ? Sim.POINTS.fruit + Sim.POINTS.zlate : frozenHit ? Sim.POINTS.frozen : fin ? Sim.POINTS.finale : Sim.POINTS.fruit;
   addScore(pts);
-  addCharge(o.kind === "karambola" ? Sim.CHARGE.karambola : Sim.CHARGE.cut);
+  addCharge(o.kind === "karambola" ? Sim.CHARGE.karambola : gold ? Sim.CHARGE.zlate : giant ? Sim.CHARGE.obri : Sim.CHARGE.cut);
+  if (gold || giant) { scene.ring(o.g.position.x, o.g.position.y, gold ? "#FFE08A" : "#F0505A", 14); scene.burst(o.g.position.x, o.g.position.y, JUICE[o.kind] || "#FFF1B8", giant ? 22 : 12, 13, 0.5, 0.7); }
+  if (fin) game.finCuts = (game.finCuts || 0) + 1;
   if (o.kind === "karambola") {
     const sent = sendSabotage("bomba", p.x, p.y);
     float(p.x, p.y, `+${pts}`);
@@ -970,7 +1161,7 @@ function endStroke() {
     window.__ovs.log.push({ ev: "combo", n: s.n, sent: sent ? type : null, at: Date.now() });
   }
 }
-function ptr(e) { return { x: e.clientX, y: e.clientY, t: performance.now() }; }
+function ptr(e) { return { x: e.clientX, y: e.clientY, t: ptrTime(e) }; }
 blade.addEventListener("pointerdown", e => {
   pointerDown = true; lastPt = ptr(e); trail = [lastPt];
   try { blade.setPointerCapture(e.pointerId); } catch {}
@@ -981,7 +1172,7 @@ blade.addEventListener("pointermove", e => {
   for (const ce of (evs.length ? evs : [e])) {
     const p = ptr(ce);
     if (lastPt) {
-      cutTest(lastPt.x, lastPt.y, p.x, p.y, p.t);
+      cutTest(lastPt, p);
       const sp = Math.hypot(p.x - lastPt.x, p.y - lastPt.y) / Math.max(1, p.t - lastPt.t) * 1000;
       if (sp > 1400 && (!ptr.sw || p.t - ptr.sw > 160)) { ptr.sw = p.t; sound.swish(sp); }
     }
@@ -993,20 +1184,42 @@ blade.addEventListener("pointerup", up);
 blade.addEventListener("pointercancel", up);
 blade.addEventListener("contextmenu", e => e.preventDefault());
 
+// čepel podle výher v sérii (Sim.BLADES): 0 klasická, 1 jiskry, 2 dvojitá, 3 zlatá a delší, 4+ duha s hvězdou na špičce. Jen vzhled, zásahy se nemění.
+const BLADE_LIFE = [120, 120, 120, 160, 170];
 function drawBlade(now) {
-  trail = trail.filter(p => now - p.t < 120);
+  const tier = game.blade | 0;
+  trail = trail.filter(p => now - p.t < BLADE_LIFE[tier]);
   bctx.clearRect(0, 0, scene.w, scene.h);
   if (trail.length < 2) return;
   const me = room && room.seat ? COLORS[room.seat] : COLORS.x;
+  const halo = tier === 3 ? "#FFC93C" : me, core = tier === 3 ? "#FFF4C2" : "#FFFCF2", n = trail.length;
   bctx.lineCap = "round"; bctx.lineJoin = "round";
-  for (const [color, wMul] of [[me, 1.9], ["#FFFCF2", 1]]) {
+  let ox = 0, oy = 0;
+  if (tier === 2) { const a = trail[0], b = trail[n - 1], d = Math.hypot(b.x - a.x, b.y - a.y) || 1; ox = -(b.y - a.y) / d; oy = (b.x - a.x) / d; }
+  for (const [color, wMul] of [[halo, 1.9], [core, 1]]) {
     bctx.strokeStyle = color;
-    for (let i = 1; i < trail.length; i++) {
-      const a = trail[i - 1], b = trail[i], k = i / trail.length;
-      bctx.globalAlpha = color === me ? 0.45 * k : 0.95 * k;
-      bctx.lineWidth = (1.5 + 7 * k) * wMul;
-      bctx.beginPath(); bctx.moveTo(a.x, a.y); bctx.lineTo(b.x, b.y); bctx.stroke();
+    for (let i = 1; i < n; i++) {
+      const a = trail[i - 1], b = trail[i], k = i / n;
+      if (tier === 4 && color === halo) bctx.strokeStyle = `hsl(${(i * 22 + now * 0.25) % 360} 95% 62%)`;
+      bctx.globalAlpha = color === halo ? 0.45 * k : 0.95 * k;
+      bctx.lineWidth = (1.5 + 7 * k) * wMul * (tier === 2 ? 0.55 : 1);
+      for (const side of tier === 2 ? [-1, 1] : [0]) {
+        const sx = ox * side * (3 + 5 * k), sy = oy * side * (3 + 5 * k);
+        bctx.beginPath(); bctx.moveTo(a.x + sx, a.y + sy); bctx.lineTo(b.x + sx, b.y + sy); bctx.stroke();
+      }
     }
+  }
+  if (tier === 1 || tier === 4) {
+    bctx.fillStyle = tier === 4 ? "#FFF4C2" : me;
+    for (let i = 0; i < n; i += 2) {
+      const p = trail[i], k = i / n, h = Math.sin(i * 12.9898 + p.t * 0.05);
+      bctx.globalAlpha = 0.85 * k; bctx.beginPath(); bctx.arc(p.x + h * 9, p.y + Math.cos(i * 7.3) * 9, 1.3 + 2.6 * k, 0, 6.283); bctx.fill();
+    }
+  }
+  if (tier === 4) {   // hvězda na špičce
+    const p = trail[n - 1]; bctx.globalAlpha = 0.95; bctx.fillStyle = "#FFF4C2"; bctx.beginPath();
+    for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, r = i % 2 ? 4 : 10; bctx.lineTo(p.x + Math.cos(a) * r, p.y + Math.sin(a) * r); }
+    bctx.closePath(); bctx.fill();
   }
   bctx.globalAlpha = 1;
 }
@@ -1015,8 +1228,8 @@ function drawBlade(now) {
 let lastT = performance.now(), idleNext = 0, qualityT = 0, feelT = 0;
 const idleRng = Sim.rng(Date.now() & 0xffff);
 function spawnItem(it, t0) {
-  const o = scene.spawn(it.kind, { frozen: !!it.frozen, band: it.band || "#E23B3B" });
-  o.it = it; o.t0 = t0;
+  const o = scene.spawn(it.kind, { frozen: !!it.frozen, band: it.band || "#E23B3B", big: it.big || 1, z: it.kind === "bomba" ? 1.5 : ((((it.id || 0) * 7) % 5) - 2) * 0.5 });   // bomba vždy vpředu, ovoce ve čtyřech hloubkách
+  o.it = it; o.t0 = t0; o.hp = it.hp || 0;
   if (phase === "play") window.__ovs.feel.spawns.push({ t: Math.round(t0), kind: it.kind, sab: !!it.from });
   o.spinAxis.set(it.spin[0], it.spin[1], it.spin[2]).normalize(); o.spin = it.spin[3];
   game.live.push(o);
@@ -1027,7 +1240,8 @@ function moveAll(clockMs) {
   for (const o of [...game.live]) {
     const dt = (clockMs - o.t0) / 1000;
     const p = Sim.posAt(o.it, dt);
-    o.vx = o.it.vu * hw; o.vy = Sim.vy0(o.it.apex) - Sim.G * dt;
+    if (o.pin) { scene.place(o, o.pin.x, o.pin.y, 0); continue; }   // jen pro testy (tests/kolize.cjs)
+    o.vx = o.it.vu * hw; o.vy = Sim.vy0(o.it.apex, o.it.gm) - Sim.G * (o.it.gm || 1) * dt;
     if (p.y < Sim.Y0 - 2 && o.vy < 0) {
       // propadlý kus ovoce (ne bomba, ne karambola) ve třech životech: × u spodního okraje tam, kde zmizel
       if (game.md === "zivoty" && phase === "play" && Sim.FRUITS.includes(o.kind)) loseLife(Math.max(30, Math.min(innerWidth - 30, scene.toScreen(o.g.position.x, 0).x)), innerHeight - 96);
@@ -1050,7 +1264,7 @@ function frame(now) {
       if (left > 0 && left <= 3) { $("count").innerHTML = `<span>${left}</span>`; sound.beep(false); }
       else if (left <= 0) { $("count").innerHTML = `<span class="go">Sekej!</span>`; sound.beep(true); setTimeout(() => { if (phase === "play") $("count").innerHTML = ""; }, 700); }
     }
-    if (now >= game.start) { phase = "play"; setNet(""); }
+    if (now >= game.start) { phase = "play"; setNet(""); hideModBig(); }
   }
   if (phase === "play") {
     const clock = now - game.start;
@@ -1060,8 +1274,10 @@ function frame(now) {
     }
     moveAll(clock);
     if (game.stroke && now - game.stroke.last > 380) endStroke();
-    if (game.queue.length && now - game.lastApplied > 2600) applySabotage(game.queue.shift());
+    if (game.queue.length && now - game.lastApplied > 2600 && !game.fin0 && clock + 800 < game.finAt) applySabotage(game.queue.shift());
     tryFire(now);
+    if (!game.fin0 && clock >= game.finAt) startFinale(clock);
+    updateBoost();
     if (now - feelT > 100) {   // kolik kusů je právě vidět (pro tests/feel.cjs)
       feelT = now; let n = 0;
       for (const o of game.live) if (!o.dead) { const q = scene.toScreen(o.g.position.x, o.g.position.y); if (q.y > 0 && q.y < scene.h && q.x > 0 && q.x < scene.w) n++; }
@@ -1085,7 +1301,7 @@ function frame(now) {
   } else if (phase !== "count") {
     // v menu a mezi koly létá pár kusů na zkoušku
     const clock = now;
-    if (now > idleNext && game.live.length < 3 && !document.hidden) {
+    if (now > idleNext && game.live.length < 3 && !document.hidden && !window.__ovs.pause) {
       idleNext = now + 1400 + idleRng() * 900;
       const kinds = [...Sim.FRUITS];   // karambola jen ve hře, v menu by visela pod visačkou bez významu
       const u = (idleRng() * 2 - 1) * 0.7;
@@ -1112,8 +1328,21 @@ function fpsStats() {
 window.__ovs = {
   log: [],
   feel: { spawns: [], vis: [] },
-  state: () => ({ phase, view, K, score: game.score, md: game.md, lives: game.lives, fin: game.fin, oppF: game.oppF, why: game.endWhy, gmd: room && room.meta.g.md, opp: room && room.opp ? room.opp.sc : null, seat: room && room.seat, go: room && room.meta.g.go, rl: room && room.meta.g.rl, sent: game.sent, got: game.got, precise: game.precise, charge: game.charge, bombs: game.bombs, cuts: game.cuts, queue: game.queue.length, live: game.live.length }),
-  targets: () => game.live.filter(o => !o.dead).map(o => ({ kind: o.kind, ice: !!o.ice, ...scene.toScreen(o.g.position.x, o.g.position.y), r: o.r / scene.HALF_H * scene.h / 2 })),
+  chargeLog: [],
+  sig: () => game.sig,
+  pause: false,
+  // jen pro tests/kolize.cjs: připne kus na obrazovkové souřadnice (z = hloubka) a vrátí jeho poloměr v px
+  pin(kind, sx, sy, z = 0) {
+    const f = scene.persp(z), o = scene.spawn(kind, { z });
+    o.it = { kind, u: 0, vu: 0, apex: 0, gm: 1, spin: [0, 0, 1, 0] }; o.t0 = 0; o.spinAxis.set(0, 0, 1);
+    const wx = (sx / scene.w * 2 - 1) * scene.halfW / f, wy = (1 - sy / scene.h * 2) * scene.HALF_H / f;
+    o.pin = { x: wx / scene.fieldHalf, y: wy };
+    game.live.push(o); scene.place(o, o.pin.x, o.pin.y, 0);
+    return { r: o.r / scene.HALF_H * scene.h / 2 * f };
+  },
+  clearLive() { for (const o of game.live) scene.remove(o); game.live = []; },
+  state: () => ({ phase, view, K, mod: game.mod, theme: curTheme, blade: game.blade, boost: game.boost, fin0: game.fin0, finAt: game.finAt, scoreFin: game.scoreFin, finCuts: game.finCuts || 0, clock: phase === "play" ? Math.round(performance.now() - game.start) : null, score: game.score, md: game.md, lives: game.lives, fin: game.fin, oppF: game.oppF, why: game.endWhy, gmd: room && room.meta.g.md, opp: room && room.opp ? room.opp.sc : null, seat: room && room.seat, go: room && room.meta.g.go, rl: room && room.meta.g.rl, sent: game.sent, got: game.got, precise: game.precise, charge: game.charge, bombs: game.bombs, cuts: game.cuts, queue: game.queue.length, live: game.live.length }),
+  targets: () => game.live.filter(o => !o.dead).map(o => ({ kind: o.kind, ice: !!o.ice, hp: o.hp || 0, ...scene.toScreen(o.g.position.x, o.g.position.y, o.g.position.z), r: o.r / scene.HALF_H * scene.h / 2 * scene.persp(o.g.position.z) })),
   fps: fpsStats,
   float,
   drawCalls: () => scene.renderer.info.render.calls,

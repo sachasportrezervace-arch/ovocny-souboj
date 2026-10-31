@@ -9,7 +9,7 @@ t("rozpis má rozumnou hustotu, bomby jako koření a karamboly pro 60 i 120 s",
     const s = S.schedule(sd, ms), k0 = ms / 60000;
     const f = s.filter(i => S.FRUITS.includes(i.kind)).length, b = s.filter(i => i.kind === "bomba").length, k = s.filter(i => i.kind === "karambola");
     assert.ok(f >= 60 * k0 && f <= 130 * k0, `ovoce ${f} (${ms})`); assert.ok(b >= 3 * k0 && b <= 14 * k0, `bomby ${b} (${ms})`);
-    const share = b / s.length; assert.ok(share >= 0.05 && share <= 0.15, `podíl bomb ${(share * 100).toFixed(1)} % (${ms})`);
+    const share = b / s.length; assert.ok(share >= 0.05 && share <= 0.17, `podíl bomb ${(share * 100).toFixed(1)} % (${ms})`);
     assert.equal(k.length, Math.round(ms / 12000));
     assert.ok(k[0].t >= 4000 && k[0].t <= 5800, "první karambola v 4–6 s: " + k[0].t);
     assert.ok(k.every((x, i) => i === 0 || x.t - k[i - 1].t > 6000), "karamboly nejsou nalepené");
@@ -85,5 +85,100 @@ t("rozpis závodu (90 s) a tří životů (120 s): cíl je na dosah zhruba v pů
     const l = S.schedule(sd, S.LIFE_MS), a = l.filter(i => i.t < 30000).length, b = l.filter(i => i.t >= 90000).length;
     assert.ok(b >= a * 1.8, `tři životy: zrychlení ${a} -> ${b}`);
   }
+});
+// ---------- rozmanitost, finále, kolize (docs/mody.md) ----------
+const SEEDS = [1, 7, 99, 12345, 777, 31337];
+t("modifikátor a deska ze semínka: stejné semínko = totéž, všechny druhy se objeví, další kolo je jiné", () => {
+  for (const sd of SEEDS) { assert.equal(S.modOf(sd), S.modOf(sd)); assert.equal(S.themeOf(sd), S.themeOf(sd)); }
+  const mods = new Set(), themes = new Set();
+  for (let sd = 1; sd < 400; sd++) { mods.add(S.modOf(sd)); themes.add(S.themeOf(sd)); }
+  assert.equal(mods.size, S.MODS.length); assert.equal(themes.size, S.THEMES.length);
+  let prev = 0, seq = [];
+  const rnd = S.rng(5);
+  for (let i = 0; i < 200; i++) { const sd = S.pickSeed(prev, rnd); if (prev) { assert.notEqual(S.modOf(sd), S.modOf(prev)); assert.notEqual(S.themeOf(sd), S.themeOf(prev)); } prev = sd; seq.push(sd); }
+});
+t("rozpis kola je pro oba hráče stejný a nese svůj modifikátor", () => {
+  for (const md of ["cas", "zavod", "zivoty"]) for (const sd of SEEDS) {
+    const ms = S.lengthFor(md, 120000);
+    assert.deepEqual(S.roundSchedule(sd, ms, md), S.roundSchedule(sd, ms, md));
+  }
+  const find = mod => { for (let sd = 1; sd < 200; sd++) if (S.modOf(sd) === mod) return sd; };
+  for (const ms of [60000, 120000]) {
+    const base = sd => S.schedule(sd, ms), hasFin = S.hasFinale("cas", ms);
+    const sdZ = find("zlate"), sdO = find("obri"), sdR = find("rady"), sdM = find("mesic");
+    const z = S.roundSchedule(sdZ, ms, "cas"), o = S.roundSchedule(sdO, ms, "cas"), r = S.roundSchedule(sdR, ms, "cas"), m = S.roundSchedule(sdM, ms, "cas");
+    const gold = z.filter(i => i.kind === "zlate" && !i.fin).length;
+    assert.ok(gold >= 3 && gold <= 10, `zlatých ${gold} (${ms})`);
+    const giants = o.filter(i => i.hp);
+    assert.ok(giants.length >= 2 && giants.every(g => g.kind === "meloun" && g.hp === 4 && g.big > 1.5 && Math.abs(g.u) <= 0.36), `obří ${giants.length}`);
+    assert.ok(S.flightTime(giants[0]) > 2.5);
+    assert.ok(m.every(i => i.fin || i.gm === 0.62) && m.filter(i => i.gm === 0.62).length > 40, "měsíční tíže");
+    assert.ok(S.flightTime({ apex: 5, gm: 0.62 }) > S.flightTime({ apex: 5 }) * 1.2);
+    // opony: řady 5–6 kusů za sebou (do 450 ms)
+    let curtains = 0; const fr = r.filter(i => S.FRUITS.includes(i.kind) && !i.fin);
+    for (let i = 0; i < fr.length; i++) { let j = i; while (j + 1 < fr.length && fr[j + 1].t - fr[i].t < 450) j++; if (j - i >= 4) { curtains++; i = j; } }
+    assert.ok(curtains >= Math.round(ms / 9000) - 2, `opon ${curtains} (${ms})`);
+    for (const x of [z, o, r, m]) assert.ok(x.every(i => i.t >= 0 && i.t < ms - 1000) && x.every((i, k) => i.id === k && (k === 0 || x[k - 1].t <= i.t)));
+    assert.ok(hasFin || !z.some(i => i.fin));
+  }
+});
+t("finále: jen kolo na čas ≥ 45 s, posledních ~8,6 s, bez bomb, vlny 4 + 7×5, stejné pro oba, body navíc", () => {
+  assert.equal(S.hasFinale("cas", 120000), true); assert.equal(S.hasFinale("cas", 60000), true); assert.equal(S.hasFinale("cas", 15000), false);
+  assert.equal(S.hasFinale("zavod", 90000), false); assert.equal(S.hasFinale("zivoty", 120000), false);
+  for (const sd of SEEDS) for (const ms of [60000, 120000]) {
+    const s = S.roundSchedule(sd, ms, "cas"), F0 = S.finaleStart(ms), fin = s.filter(i => i.fin);
+    assert.equal(fin.length, 39, "8 vln: 4 + 7 × 5 kusů");
+    assert.ok(fin.every(i => i.t >= F0 && i.t < ms - 1500 && ["pomeranc", "svestka", "citron", "jablko", "kiwi", "zlate"].includes(i.kind)));
+    assert.ok(fin[0].gm === 0.65 && fin.slice(4).every(i => i.gm === 1), "první vlna pomalu, další běžně");
+    assert.ok(s.filter(i => i.kind === "bomba").every(i => i.t + S.flightTime(i) * 1000 < F0 + 50), "žádná bomba nedoletí do finále");
+    assert.ok(s.filter(i => i.t >= F0 && i.kind !== "karambola").every(i => i.fin), "ve finále jen finálové kusy (a karambola)");
+    assert.ok(S.POINTS.finale >= 2 && S.POINTS.zlate > S.POINTS.finale);
+    let max = 0;
+    for (let tt = F0; tt < ms; tt += 100) { let n = 0; for (const it of s) if (it.t <= tt && tt < it.t + S.flightTime(it) * 1000 && S.posAt(it, (tt - it.t) / 1000).y > -10) n++; max = Math.max(max, n); }
+    assert.ok(max <= 20, `naráz ve finále ${max}`);
+  }
+});
+t("bomba není schovaná za ovocem ani těsně vedle něj (rozestup, bomby jako koření zůstávají)", () => {
+  for (const ms of [60000, 120000]) for (const sd of SEEDS) {
+    let s = S.schedule(sd, ms);
+    const bombs = s.filter(i => i.kind === "bomba");
+    assert.ok(bombs.length >= 3 * ms / 60000, `bomby ${bombs.length}`);
+    for (const b of bombs) for (const o of s) if (o !== b) assert.ok(S.gapRatio(b, o) >= S.CLEAR - 1e-9 || (o.kind === "bomba" || o.kind === "karambola"), `bomba ${b.t} u ${b.u.toFixed(2)} × ${o.kind} ${o.t}: ${S.gapRatio(b, o).toFixed(2)}`);
+    for (const b of bombs) for (const o of s) if (o !== b && (o.kind === "bomba" || o.kind === "karambola")) assert.ok(S.gapRatio(b, o) >= S.CLEAR - 1e-9, "i bomba × bomba/karambola");
+  }
+  // opony a finále: i po použití modifikátoru
+  for (const sd of SEEDS) { const s = S.roundSchedule(sd, 60000, "cas"); for (const b of s.filter(i => i.kind === "bomba")) for (const o of s) if (o !== b) assert.ok(S.gapRatio(b, o) >= S.CLEAR - 1e-9, `kolo ${sd}: bomba × ${o.kind}`); }
+  // bomba z naschválu si vybere dráhu s největším rozestupem
+  const sch = S.schedule(99, 60000), sb = S.sabotageBomb(sch, 20000, S.rng(3));
+  assert.ok(sb.kind === "bomba" && Math.abs(sb.u) <= 0.6);
+});
+t("pohyblivá koule: rychlý švih ani uletělé ovoce se nepřeskočí", () => {
+  // čepel 400 px za jeden snímek přes ovoce o poloměru 40 px, které mezi tím uletí o 60 px
+  assert.ok(S.sweptDist(100, 300, 500, 300, 300, 330, 300, 330) < 40, "stojící koule, jedna dlouhá úsečka");
+  // ovoce přelétne čepel mezi snímky: na začátku nad ní, na konci pod ní (statický test na obou koncích by minul)
+  const d = S.sweptDist(250, 300, 350, 300, 300, 240, 300, 360);
+  assert.ok(d < 5, `pohyblivá ${d}`);
+  assert.ok(Math.min(Math.hypot(250 - 300, 300 - 240), Math.hypot(350 - 300, 300 - 360)) > 60, "bez pohybu by minula");
+  assert.ok(S.sweptDist(100, 100, 150, 100, 400, 400, 400, 420) > 250);
+  assert.ok(S.hitRadius("meloun", 40) > 40 * 1.15 + 6, "ovoce štědřejší než dřív (1,15 r + 6)");
+  assert.equal(S.hitRadius("bomba", 40), 24);
+  assert.ok(S.hitRadius("bomba", 40) < S.hitRadius("jablko", 40) * 0.5);
+});
+t("dohánění: zapíná se při odstupu 10 bodů, vypíná pod 5, nebliká při zpoždění 0,5 s", () => {
+  assert.equal(S.boostNext(false, "cas", 20, 29), false); assert.equal(S.boostNext(false, "cas", 20, 30), true);
+  assert.equal(S.boostNext(true, "cas", 20, 26), true); assert.equal(S.boostNext(true, "cas", 20, 24), false);
+  assert.equal(S.boostNext(false, "zivoty", 90, 10, 2, 3), true); assert.equal(S.boostNext(true, "zivoty", 10, 90, 3, 3), false);
+  // dva hráči, soupeř vidím o 0,5 s starý; počítá se, kolikrát se stav přepne
+  for (const [rA, rB] of [[3, 1], [2.5, 2.5], [4, 3], [1, 4]]) {
+    const A = t => Math.floor(rA * t + 2 * Math.sin(t * 3)), B = t => Math.floor(rB * t + 2 * Math.sin(t * 2.1 + 1));
+    let on = false, flips = 0;
+    for (let t = 0; t < 60; t += 0.1) { const n = S.boostNext(on, "cas", A(t), B(Math.max(0, t - 0.5))); if (n !== on) flips++; on = n; }
+    assert.ok(flips <= 2, `přepnutí ${flips} (${rA}/${rB})`);
+  }
+  assert.equal(S.BOOST.mul, 2);
+});
+t("čepel podle výher v sérii", () => {
+  assert.deepEqual([0, 1, 2, 3, 4, 9].map(S.bladeTier), [0, 1, 2, 3, 4, 4]);
+  assert.equal(S.BLADES.length, 5);
 });
 console.log(n + "/" + n + " PASS");

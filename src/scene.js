@@ -15,6 +15,7 @@ const LOOK = {
   jablko: { skin: ["#D9262E", "#F05A3A"], flesh: "#F7EDC7", juice: "#FFF1B8", scale: [1, 0.93, 1], r: 0.96, stem: true, leaf: true },
   kiwi: { skin: ["#A67B45", "#7C5630"], flesh: "#8FC63F", juice: "#A6D654", scale: [1.12, 0.88, 0.88], r: 0.9 },
   karambola: { skin: ["#FFC81F", "#F2B705"], flesh: "#FFE47A", juice: "#FFD84A", scale: [1, 1, 1], r: 1.05 },
+  zlate: { skin: ["#FFD23F", "#E59E0C"], flesh: "#FFE9A0", juice: "#FFD84A", scale: [1, 0.94, 1], r: 1.0, stem: true, leaf: true },   // zlaté jablko (modifikátor a finále)
 };
 
 function toonRamp() {
@@ -254,30 +255,32 @@ export function createScene(canvas, opts = {}) {
   // ---------- kusy ve hře ----------
   let halfW = HALF_H, fieldHalf = HALF_H;   // fieldHalf: vodorovný rozsah spawnu (na ultra-širokém displeji užší než obraz)
   const live = new Set(), halves = [];
-  function spawn(kind, { frozen = false, band = "#E23B3B" } = {}) {
+  // z = hloubka kusu: sousední kusy mají různou, takže se překrývající ovoce nezasekne do sebe a bomba (z 1,5) leží vždy vpředu, nikdy za ovocem
+  function spawn(kind, { frozen = false, band = "#E23B3B", big = 1, z = 0 } = {}) {
     const g = new THREE.Group();
     const L = LOOK[kind], r = kind === "bomba" ? 0.95 : L.r;
     const geo = kind === "bomba" ? bombGeo(band) : kit[kind].whole;
     const mesh = new THREE.Mesh(geo, skinMat);
     const sc = kind === "bomba" ? [1, 1, 1] : L.scale;
-    mesh.scale.set(sc[0] * r, sc[1] * r, sc[2] * r);
+    mesh.scale.set(sc[0] * r * big, sc[1] * r * big, sc[2] * r * big);
     const line = new THREE.Mesh(geo, kind === "bomba" ? bombOutlineMat : outlineMat);
     line.scale.setScalar(kind === "karambola" ? 1.08 : 1.07);
     mesh.add(line);
     g.add(mesh);
     let ice = null;
-    if (frozen) { ice = new THREE.Mesh(iceGeo, iceMat); ice.scale.setScalar(r); g.add(ice); }
+    if (frozen) { ice = new THREE.Mesh(iceGeo, iceMat); ice.scale.setScalar(r * big); g.add(ice); }
     scene.add(g);
-    const o = { kind, g, mesh, ice, r: r * Math.max(...sc), spinAxis: new THREE.Vector3(0, 1, 0), spin: 2 };
+    const o = { kind, g, mesh, ice, z, big, r: r * Math.max(...sc) * big, spinAxis: new THREE.Vector3(0, 1, 0), spin: 2 };
     live.add(o);
     return o;
   }
   const q = new THREE.Quaternion();
   function place(o, xn, y, t) {
-    o.g.position.set(xn * fieldHalf, y, 0);
+    o.g.position.set(xn * fieldHalf, y, o.z || 0);
     q.setFromAxisAngle(o.spinAxis, o.spin * t);
     o.mesh.quaternion.copy(q);
     if (o.ice) o.ice.quaternion.copy(q);
+    if (o.kind === "zlate" && Math.random() < 0.5) emit(o.g.position.x + (Math.random() - 0.5) * o.r * 1.6, o.g.position.y + (Math.random() - 0.5) * o.r * 1.6, 2, 0, 1.5, Math.random() < 0.5 ? "#FFF3B0" : "#FFC93C", 0.3, 0.35, 0.1);   // třpyt zlatého ovoce
     if (o.kind === "bomba" && Math.random() < 0.6) {
       const tip = new THREE.Vector3(0.24, 1.55, 0).applyQuaternion(q).multiplyScalar(o.r).add(o.g.position);
       emit(tip.x, tip.y, 2, (Math.random() - 0.5) * 3, 2 + Math.random() * 2, Math.random() < 0.5 ? "#FFD27A" : "#FF7A2F", 0.32, 0.25, 0.3);
@@ -312,6 +315,11 @@ export function createScene(canvas, opts = {}) {
       });
     }
     burst(base.x, base.y, L.juice, 12, 11, 0.34, 0.6);
+  }
+  // zásah obřího melounu, který ještě drží: zmenší se, vystříkne šťáva (hp řeší main.js)
+  function hurt(o) {
+    o.mesh.scale.multiplyScalar(0.93); o.r *= 0.93;
+    burst(o.g.position.x, o.g.position.y, LOOK[o.kind].juice, 9, 10, 0.42, 0.5);
   }
   function crack(o) {
     if (!o.ice) return;
@@ -350,11 +358,14 @@ export function createScene(canvas, opts = {}) {
     resize(api.w, api.h);
   }
   // obrazovkové souřadnice (CSS px) bodu ve světě
-  const toScreen = (x, y) => ({ x: (x / halfW + 1) / 2 * api.w, y: (1 - y / HALF_H) / 2 * api.h });
+  // z je hloubka kusu: perspektiva ho o pár procent zvětší a odsune od středu, hit-test s tím počítá
+  const CAM_Z = HALF_H / Math.tan(THREE.MathUtils.degToRad(FOV / 2));
+  const persp = z => CAM_Z / (CAM_Z - (z || 0));
+  const toScreen = (x, y, z = 0) => { const f = persp(z); return { x: (x * f / halfW + 1) / 2 * api.w, y: (1 - y * f / HALF_H) / 2 * api.h }; };
 
   const api = {
     w: 1, h: 1, HALF_H, get halfW() { return halfW; }, get fieldHalf() { return fieldHalf; }, get pixelRatio() { return pxRatio; },
-    renderer, spawn, place, remove, slice, crack, explode, burst, ring, resize, setPixelRatio, toScreen,
+    renderer, spawn, place, remove, slice, crack, hurt, explode, persp, burst, ring, resize, setPixelRatio, toScreen,
     live, halves,
     step(dt) { stepParticles(dt); stepHalves(dt); },
     render() { renderer.render(scene, camera); },
