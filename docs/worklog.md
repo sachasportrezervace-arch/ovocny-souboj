@@ -1,5 +1,11 @@
 # Ovocný souboj – deník
 
+## 2026-10-31 (Claude, design review módů)
+Design-eye proti „profi indie hra, plochý vektor, minimální HUD, žádné hlášky přes hru“ (desktop 1440×900 + WebKit iPhone 13, oba hráči).
+- Kolo 1 (verdikt „skoro“): (1) HIGH výsledek tří životů ukazoval u vítěze i poraženého stejné „0:04 : 0:04“, vítěz nečitelný (přeživšímu končí kolo smrtí soupeře) → u přeživšího „+“ (`lvOf`/`big` ve `viewResult`). (2) MED čipy módu vypadaly stejně jako čipy sázek pod nimi → mód je spojený přepínač přes celou šířku (`.chips.seg`, setup i „Odveta v módu“, na výsledku už nezůstává prázdný pruh vpravo). (3) MED „×“ po propadlém kuse byl drobný šedý Figtree → Bungee 52 px se stínem jako ostatní plovoucí texty. (4) LOW pravidlo v čekárně bylo nejmenší text na visačce → u `h2` 17 px v inkoustu. (5) LOW tečky životů 10 → 12 px, pulz ztráty života jemnější (scale 1,55, ne 1,9, nepřekrývá sousední tečku).
+- Kolo 2: verdikt „profi indie hra“, bez blokujících nálezů (jen LOW: na iPhonu na šířku se setup scrolluje, přepínač přidal ~10 px; hlášky „Přesně!“ a „Combo“ jsou starší twist, ne součást módů).
+- Testy: v `tests/mody.cjs` dvě flaky kontroly (životy soupeře přeskočené mezi kroky bota → MutationObserver; hodiny závodu při rychlém cíli → snímek ve 4 s), přibyly jen snímky (lobby, „×“). Výsledky: sim 12/12, mody 21/21, duel 49/49.
+
 ## 2026-10-31 noc (Claude, hlášky o naschvalech pryč)
 Mark při hraní: hlášky („posílá bombu“, banner, „letí k soupeři“) překáží a dělají chaos. Odstraněno: banner `#banner`, texty `SAB` v `src/sim.js` (nahrazeno `SAB_TYPES`), „Náboj plný!…“, podtitulky u karamboly, comba, „Odraženo!“ (nyní „Přesně!“) a „bomba od <jméno>“. Naschvál samotný beze změny. Místo textu: bliknutí ikony naschválu na rohu soupeřovy cedulky (`#sabIcon`, 380 ms) a pulz měřiče u odesílatele (`#chargeMe.fire`, 360 ms); nic přes plochu, reduced-motion jen mění průhlednost. Testy: `feel.cjs` a `float.cjs` místo hlášek ověřují doručení (`got` + ikona bliknula, pulz u odesílatele, žádný text o naschvále, žádný banner).
 

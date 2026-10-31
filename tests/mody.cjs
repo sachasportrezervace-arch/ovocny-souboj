@@ -78,13 +78,14 @@ async function play(p, untilMs, shotAt, shotName) {
   await A.locator("#bLobby").click({ timeout: 3000 }).catch(() => {});
   await A.waitForSelector("#bReady:not([disabled])", { timeout: 15000 });
   check("lobby: mód a pravidlo na visačce", /Do 15 bodů\./.test(await A.innerText(".tag")));
+  await snap(A, "mody-desktop-lobby-zavod"); await snap(B, "mody-iphone-lobby-zavod");
 
   // --- 1) závod ---
   await Promise.all([A.click("#bReady"), B.click("#bReady")]);
   await Promise.all([waitPhase(A, "play"), waitPhase(B, "play")]);
   check("závod: oba hrají mód zavod", (await st(A)).md === "zavod" && (await st(B)).md === "zavod");
-  const [cA] = await Promise.all([play(A, 50000, 6000, "mody-desktop-hra-zavod"), play(B, 50000, 6500, "mody-iphone-hra-zavod")]);
-  check("závod: hodiny běží nahoru", /^0:0[4-9]|^0:1\d/.test(cA[0] || ""), cA.join());
+  const [cA] = await Promise.all([play(A, 50000, 4000, "mody-desktop-hra-zavod"), play(B, 50000, 4300, "mody-iphone-hra-zavod")]);
+  check("závod: hodiny běží nahoru", /^0:0[2-9]|^0:[1-5]\d/.test(cA[0] || ""), cA.join());
   await Promise.all([waitPhase(A, "result", 20000), waitPhase(B, "result", 20000)]);
   const [eA, eB] = await Promise.all([lastEnd(A), lastEnd(B)]);
   const winA = eA.why === "cil", winB = eB.why === "cil";
@@ -109,18 +110,22 @@ async function play(p, untilMs, shotAt, shotName) {
   await Promise.all([waitPhase(A, "play"), waitPhase(B, "play")]);
   check("tři životy: oba hrají mód zivoty, 3 životy", (await st(A)).md === "zivoty" && (await st(B)).md === "zivoty" && (await st(A)).lives === 3);
   const tLife = Date.now();
-  let sawOppLives = false, shotB = false;
+  // Radčin displej může změnu životů přeskočit mezi dvěma kroky bota, proto se ztracené životy soupeře hlídají pozorovatelem DOM
+  await B.evaluate(() => { window.__offMax = 0; new MutationObserver(() => { window.__offMax = Math.max(window.__offMax, document.querySelectorAll("#livesOpp i.off").length); }).observe(document.getElementById("livesOpp"), { subtree: true, attributes: true, attributeFilter: ["class"] }); });
+  A.waitForSelector(".float.miss", { timeout: 30000 }).then(() => snap(A, "mody-desktop-hra-zivoty-miss")).catch(() => {});   // snímek „×“ po propadlém kuse
+  B.waitForSelector(".float.miss", { timeout: 30000 }).then(() => snap(B, "mody-iphone-hra-zivoty-miss")).catch(() => {});
+  let shotB = false;
   while (Date.now() - tLife < 40000) {
     const [sA, sB] = await Promise.all([st(A), st(B)]);
     if (sB.phase === "play") {
       const off = await B.evaluate(() => document.querySelectorAll("#livesOpp i.off").length);
-      if (off >= 1 && off < 3 && !shotB) { shotB = true; sawOppLives = true; await snap(B, "mody-iphone-hra-zivoty"); await snap(A, "mody-desktop-hra-zivoty"); }
+      if (off >= 1 && off < 3 && !shotB) { shotB = true; await snap(B, "mody-iphone-hra-zivoty"); await snap(A, "mody-desktop-hra-zivoty"); }
       await botStep(B, B.viewportSize());
     }
     if (sA.phase !== "play" && sB.phase !== "play") break;
     await sleep(120);
   }
-  check("tři životy: Radka vidí Markovy ztracené životy na jeho cedulce", sawOppLives);
+  check("tři životy: Radka vidí Markovy ztracené životy na jeho cedulce", (await B.evaluate(() => window.__offMax)) >= 1);
   await Promise.all([waitPhase(A, "result", 20000), waitPhase(B, "result", 20000)]);
   const [lA, lB] = await Promise.all([lastEnd(A), lastEnd(B)]);
   check("tři životy: Markovi došly životy, Radce kolo skončilo samo do 2,5 s", lA.why === "mrtvy" && lB.why === "prezil" && Math.abs(lA.at - lB.at) <= 2500, `A ${lA.why} fin ${lA.fin} / B ${lB.why}, rozdíl ${Math.abs(lA.at - lB.at)} ms`);

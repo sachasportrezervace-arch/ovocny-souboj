@@ -328,7 +328,7 @@ function viewSetup() {
       <div><label for="fOpp">Koho vyzýváš</label><input id="fOpp" type="text" maxlength="18" placeholder="třeba Radka"></div>
     </div>
     <span class="lab" id="modeLab">Mód</span>
-    <div class="chips" id="modeChips" role="group" aria-labelledby="modeLab">${modeChips("cas120")}</div>
+    <div class="chips seg" id="modeChips" role="group" aria-labelledby="modeLab">${modeChips("cas120")}</div>
     <p class="modeline" id="modeLine">${modeLine("cas", Sim.ROUND_MS, TEST_TG || Sim.TARGET)}</p>
     <span class="lab" id="stakeLab">O co hrajeme <span class="small">(nepovinné)</span></span>
     <div class="chips" id="chips" role="group" aria-labelledby="stakeLab">${STAKES.map(s => `<button type="button" aria-pressed="false">${s}</button>`).join("")}</div>
@@ -709,7 +709,9 @@ function viewResult(hx, ho) {
   const sig = `${go}|${rdy}|${room.opp && room.opp.rdy}|${g.md}|${g.rl}`;
   if (view === "result" && panel.dataset.sig === sig) return;
   const wName = w => esc(nameOfSeat(w));
-  const big = seat => md === "zivoty" ? fmtClock(sec(r["f" + seat])) : r[seat];
+  // kdo přežil soupeře, má kolo ukončené jeho smrtí: stejná vteřina jako poražený, proto „+“ (vydržel/a aspoň tak dlouho)
+  const lvOf = seat => { const v = seat === me ? d.lv : o.lv; return v == null ? Sim.LIVES : v; };
+  const big = seat => md === "zivoty" ? fmtClock(sec(r["f" + seat])) + (lvOf(seat) > 0 && sec(r["f" + seat]) < cap / 1000 ? "+" : "") : r[seat];
   const [hiS, loS] = st.winner === "o" ? ["o", "x"] : ["x", "o"];
   const ser = Sim.series(hx, ho, histEx());
   const head = st.winner ? `Souboj bere ${wName(st.winner)}` : "Remíza";
@@ -726,7 +728,7 @@ function viewResult(hx, ho) {
     form: `<div class="vs">${room.seat === "o" ? side("o", g.b) + '<div class="mid">:</div>' + side("x", g.a) : side("x", g.a) + '<div class="mid">:</div>' + side("o", g.b)}</div>`,   // já vlevo, stejně jako v HUD
     intro: stake,
     cta: `<span class="lab" id="nextLab">Odveta v módu</span>
-    <div class="chips" id="modeChips" role="group" aria-labelledby="nextLab">${modeChips(choiceId(Sim.modeOf(g.md), g.rl))}</div>
+    <div class="chips seg" id="modeChips" role="group" aria-labelledby="nextLab">${modeChips(choiceId(Sim.modeOf(g.md), g.rl))}</div>
     <button class="btn" id="bNext" ${rdy ? "disabled" : ""}>${rdy ? "Čekám na soupeře…" : "Odveta"}</button>
     ${hint ? `<p class="small" style="margin:8px 0 0;text-align:center">${hint}</p>` : ""}
     <button class="btn alt" id="bShareRes">Poslat výsledek do chatu</button>`,
