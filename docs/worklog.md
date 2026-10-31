@@ -1,5 +1,8 @@
 # Ovocný souboj – deník
 
+## 2026-10-31 (Claude, opravy po design review)
+Hotovo (lokálně, nepushnuto): iPhone setup se vejde i s CTA (jména vedle sebe, menší čipy, návod sbalený, hint jen na setup/přijetí/lobby), čeština bez nepřímého pádu jmen, desktop visačka 720 px ve dvou sloupcích uprostřed na provázku z markýzy (výzva, přijetí, výsledek také), HUD max 980 px, prázdný stav cedulky skrytý, výsledek jen „Souboj bere X“ + velká čísla, kontrast placeholderu, bez osiřelého špendlíku, tlačítka fs/zvuk na desktopu s dřevěným podkladem, telefon na šířku ve dvou sloupcích. Testy: sim 7/7, duel 42/42. Figtree 800 se načítá (document.fonts loaded); tence se kreslí jen v Playwright WebKitu, na skutečném iPhonu neověřeno.
+
 ## 2026-10-31 (Claude, 2. kolo: jedno kolo, mobil, desktop)
 Hotovo (lokálně, NEPUSHNUTO, nasazení a design review dělá hlavní session):
 - Jedno kolo místo nejlepší ze 3: délka 1/2 min (výchozí 2) v meta `g.rl`, `?kolo=N` (10–120 s) má přednost; K = zápas*10+1, odveta = další zápas; `Sim.matchState/series`, `schedule` škálovaný (karambola cca po 12 s). Texty, m:ss, HUD „Souboj č. N“ + série.

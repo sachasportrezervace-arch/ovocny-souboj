@@ -7,11 +7,14 @@ const { chromium, webkit, devices } = require(PW);
 const BASE = (process.argv[2] || "http://127.0.0.1:8803/").replace(/\/?$/, "/");
 const SH = path.join(__dirname, "shots");
 require("fs").mkdirSync(SH, { recursive: true });
-const shot = (p, name) => p.screenshot({ path: path.join(SH, name + ".png") });
 
 let pass = 0, fail = 0;
 const check = (name, ok, extra = "") => { ok ? pass++ : fail++; console.log(`${ok ? "PASS" : "FAIL"}  ${name}${extra ? "  (" + extra + ")" : ""}`); };
 const sleep = ms => new Promise(r => setTimeout(r, ms));
+// před snímkem se počká na doběhnutí animace visačky (hang, 0,7 s); wait = 0 pro snímek za hry
+const shot = async (p, name, wait = 900) => { if (wait) await sleep(wait); await p.screenshot({ path: path.join(SH, name + ".png") }); };
+// vejde se obrazovka bez scrollu panelu a tlačítko je nad bednami?
+const fitDesk = p => p.evaluate(() => { const r = q => document.querySelector(q).getBoundingClientRect(), pn = document.getElementById("panel"); return { sh: pn.scrollHeight, ch: pn.clientHeight, cb: (document.querySelector("#bCreate, #bNext, #bReady") || document.querySelector(".tag")).getBoundingClientRect().bottom, crates: r("#crates").top, tagW: r(".tag").width, tagB: r(".tag").bottom }; });
 const st = p => p.evaluate(() => __ovs.state());
 const waitPhase = (p, ph, timeout = 30000) => p.waitForFunction(ph => [].concat(ph).includes(__ovs.state().phase), ph, { timeout });
 const DESK = { viewport: { width: 1440, height: 900 } };
@@ -57,10 +60,27 @@ async function bot(p, untilMs) {
   // 0) setup obrazovka na obou zařízeních + rozvržení
   await A.goto(BASE + "?kolo=15");
   await A.waitForSelector("#bCreate");
-  await shot(A, "desktop-1-setup");
+  await sleep(900);
+  const f1 = await fitDesk(A);
+  check("desktop 1440×900: setup bez scrollu, CTA nad bednami, visačka široká", f1.sh <= f1.ch + 1 && f1.cb <= f1.crates && f1.tagW >= 700, JSON.stringify(f1));
+  await shot(A, "desktop-1-setup", 0);
+  const D = await (await bA.newContext({ viewport: { width: 1280, height: 720 } })).newPage(); watch("D", D);
+  await D.goto(BASE); await D.waitForSelector("#bCreate"); await sleep(900);
+  const f2 = await fitDesk(D);
+  check("desktop 1280×720: setup bez scrollu, CTA nad bednami", f2.sh <= f2.ch + 1 && f2.cb <= f2.crates && f2.tagB <= f2.crates, JSON.stringify(f2));
+  await shot(D, "desktop720-1-setup", 0); await D.context().close();
+  const L = await (await bB.newContext({ ...devices["iPhone 13"], viewport: { width: 844, height: 390 }, screen: { width: 844, height: 390 } })).newPage(); watch("L", L);
+  await L.goto(BASE); await L.waitForSelector("#bCreate"); await sleep(900);
+  const fl = await L.evaluate(() => { const t = document.querySelector(".tag").getBoundingClientRect(); document.getElementById("bCreate").scrollIntoView({ block: "center" }); const c = document.getElementById("bCreate").getBoundingClientRect(); return { ox: document.documentElement.scrollWidth - innerWidth, tl: t.left, tr: t.right, w: innerWidth, cTop: c.top, cBot: c.bottom, h: innerHeight, scrolled: document.scrollingElement.scrollTop }; });
+  check("iPhone na šířku 844×390: nic nepřetéká do stran, CTA dosažitelné scrollem panelu", fl.ox <= 0 && fl.tl >= 0 && fl.tr <= fl.w && fl.cTop >= 0 && fl.cBot <= fl.h && fl.scrolled === 0, JSON.stringify(fl));
+  await L.evaluate(() => document.getElementById("panel").scrollTo(0, 0)); await sleep(200);
+  await shot(L, "iphone-landscape-1-setup", 0); await L.context().close();
   const B0 = await ctxB.newPage(); watch("B0", B0);
   await B0.goto(BASE); await B0.waitForSelector("#bCreate"); await B0.waitForTimeout(600);
-  await shot(B0, "iphone-1-setup");
+  await shot(B0, "iphone-1-setup", 0);
+  const fit = await B0.evaluate(() => { const r = q => document.querySelector(q).getBoundingClientRect(), h = document.getElementById("iosHint"); return { h: innerHeight, cb: r("#bCreate").bottom, hintTop: h.hidden || getComputedStyle(h).display === "none" ? null : r("#iosHint").top, tagB: r(".tag").bottom, soundTop: r("#sound").top }; });
+  check("iPhone setup: CTA vidět bez scrollu a nad nápovědou", fit.cb <= fit.h && fit.hintTop !== null && fit.cb <= fit.hintTop, JSON.stringify(fit));
+  check("iPhone setup: visačka nezasahuje do zvuku ani nápovědy", fit.tagB <= Math.min(fit.hintTop, fit.soundTop) + 1, JSON.stringify(fit));
   const lay = await B0.evaluate(() => ({ h: innerHeight, gl: document.getElementById("gl").getBoundingClientRect().height, ta: getComputedStyle(document.getElementById("blade")).touchAction, ob: getComputedStyle(document.documentElement).overscrollBehaviorY,
     small: [...document.querySelectorAll(".chips button, .btn, #sound")].filter(e => e.offsetParent && (e.getBoundingClientRect().height < 44 || e.getBoundingClientRect().width < 44)).map(e => e.textContent.trim().slice(0, 14) || e.id) }));
   check("iPhone: hrací plocha přes celou výšku, touch-action none, overscroll none (kde ho WebKit zná)", Math.abs(lay.gl - lay.h) < 1 && lay.ta === "none" && (lay.ob === "none" || lay.ob === undefined), JSON.stringify({ h: lay.h, gl: lay.gl, ta: lay.ta }));
@@ -92,13 +112,18 @@ async function bot(p, untilMs) {
   const link = (msg.match(/https?:\/\/\S+#r\.[0-9a-z]+/) || [])[0];
   check("výzva: zpráva má odkaz, jméno, sázku a délku kola", !!link && msg.includes("Mark") && msg.includes("kafe") && /jedno kolo na/.test(msg) && !/tří kol/.test(msg), link);
   await shot(A, "desktop-2-vyzva");
+  check("výzva: věta bez skloňování jména", /ať Radka ví/.test(await A.locator(".tag h2").innerText()));
+  const srcMain = require("fs").readFileSync(path.join(__dirname, "../src/main.js"), "utf8");
+  check("texty: žádné jméno v nepřímém pádě (k/na/ji + jméno)", !/letí k \$\{/.test(srcMain) && !/Pošli ji\$\{g\.b \? " "/.test(srcMain) && !/Čekám na \$\{n\}/.test(srcMain));
   // desktop: visačka vlevo, mimo střed
   const tagBox = await A.locator(".tag").boundingBox();
-  check("desktop: visačka menu mimo střed (vlevo)", tagBox.x + tagBox.width / 2 < 1440 * 0.4, `střed ${Math.round(tagBox.x + tagBox.width / 2)} px`);
+  check("desktop: visačka vycentrovaná, nepřetéká přes bedny", Math.abs(tagBox.x + tagBox.width / 2 - 720) < 20 && tagBox.y + tagBox.height <= (await fitDesk(A)).crates, `střed ${Math.round(tagBox.x + tagBox.width / 2)} px`);
   // iPhone: výzva na vlastním zařízení pro screenshot
   const ctxB2 = await bB.newContext({ ...devices["iPhone 13"] }), B2 = await ctxB2.newPage();
-  await B2.goto(BASE + "?kolo=15"); await B2.fill("#fMe", "Mark"); await B2.fill("#fOpp", "Radka"); await B2.click("#bCreate");
-  await B2.waitForSelector("#msg", { timeout: 15000 }); await B2.waitForTimeout(900); await shot(B2, "iphone-2-vyzva"); await ctxB2.close();
+  await B2.goto(BASE); await B2.fill("#fMe", "Mark"); await B2.fill("#fOpp", "Radka"); await B2.click("#lenChips button:has-text('1 minuta')"); await B2.click("#bCreate");
+  await B2.waitForSelector("#msg", { timeout: 15000 });
+  check("výzva (běžný režim): zpráva uvádí skutečnou délku kola 1 minutu", /jedno kolo na 1 minutu\./.test(await B2.inputValue("#msg")));
+  await shot(B2, "iphone-2-vyzva"); await ctxB2.close();
 
   // 2) Radka otevře odkaz ve WebKitu a přijme
   await B.goto(link);
@@ -132,7 +157,7 @@ async function bot(p, untilMs) {
     check(`${label}: živé skóre soupeře`, oppOk, `A ${sa.score} vidí B ${sa.opp} / B ${sb.score} vidí A ${sb.opp}`);
     const [tA, tB] = await Promise.all([A.locator("#timer").innerText(), B.locator("#timer").innerText()]);
     check(`${label}: časovač ve formátu m:ss`, /^0:\d\d$/.test(tA) && /^0:\d\d$/.test(tB), `${tA}/${tB}`);
-    if (shots) { await shot(A, "desktop-4-hra"); await shot(B, "iphone-4-hra"); }
+    if (shots) { await shot(A, "desktop-4-hra", 0); await shot(B, "iphone-4-hra", 0); }
     // na B: sekání tahem nesmí scrollovat stránku ani zoomovat
     const sc = await B.evaluate(() => ({ y: scrollY, x: scrollX, top: document.scrollingElement.scrollTop, scale: window.visualViewport ? visualViewport.scale : 1 }));
     check(`${label}: iPhone stránka při tahu nescrolluje (scrollY 0, bez zoomu)`, sc.y === 0 && sc.x === 0 && sc.top === 0 && sc.scale === 1, JSON.stringify(sc));
@@ -141,7 +166,7 @@ async function bot(p, untilMs) {
     const [ea, eb] = await Promise.all([st(A), st(B)]);
     sentTotal += ea.sent + eb.sent; gotTotal += ea.got + eb.got;
     const [ha, hb] = await Promise.all([A.locator(".tag h2").innerText(), B.locator(".tag h2").innerText()]);
-    check(`${label}: konec kola, vítěz souboje stejný na obou stranách`, ha === hb && /^Souboj (bere .+ \d+ : \d+|končí remízou \d+ : \d+)$/.test(ha), `${ha} | skóre A ${ea.score} B ${eb.score}`);
+    check(`${label}: konec kola, vítěz souboje stejný na obou stranách`, ha === hb && /^(Souboj bere \S+|Remíza)$/.test(ha), `${ha} | skóre A ${ea.score} B ${eb.score}`);
     const sB = await B.evaluate(() => ({ y: scrollY, top: document.scrollingElement.scrollTop }));
     check(`${label}: iPhone po kole stále bez posunu stránky`, sB.y === 0 && sB.top === 0);
     const [logA, logB] = await Promise.all([A.evaluate(() => __ovs.log), B.evaluate(() => __ovs.log)]);
@@ -154,10 +179,13 @@ async function bot(p, untilMs) {
   }
 
   const r1 = await playRound("Souboj 1", true);
-  await new Promise(r => setTimeout(r, 400));
-  await shot(A, "desktop-5-vysledek"); await shot(B, "iphone-5-vysledek");
+  await shot(A, "desktop-5-vysledek"); await shot(B, "iphone-5-vysledek", 0);
+  const fr = await fitDesk(A);
+  check("desktop: výsledek bez scrollu a nad bednami", fr.sh <= fr.ch + 1 && fr.tagB <= fr.crates, JSON.stringify(fr));
+  const hintOnResult = await B.evaluate(() => getComputedStyle(document.getElementById("iosHint")).display);
+  check("iPhone: nápověda k ploše se na výsledku nezobrazuje (nezakrývá visačku)", hintOnResult === "none");
   const finA = await A.locator(".tag").innerText(), finB = await B.locator(".tag").innerText();
-  check("výsledek: sázka a série souboje na obou stranách", /platí: kafe|zůstává ve hře/.test(finA) && /Série soubojů/.test(finB) && /Odveta/.test(finA));
+  check("výsledek: sázka a série souboje na obou stranách", /platí: kafe|zůstává ve hře/.test(finA) && /Odveta/.test(finA) && /série \d : \d|jedno kolo/i.test(await B.locator("#ser").innerText()));
   check("sabotáž: aspoň jeden naschvál doručen", gotTotal >= 1, `odesláno ${sentTotal}, doručeno ${gotTotal}`);
   check("sabotáž: doručeno nejvýš tolik, kolik odešlo", gotTotal <= sentTotal);
   if (latencies.length) {
@@ -174,9 +202,10 @@ async function bot(p, untilMs) {
   await Promise.all([waitPhase(A, "play", 8000), waitPhase(B, "play", 8000)]);
   await Promise.all([bot(A, 20000), bot(B, 20000)]);
   await Promise.all([waitPhase(A, "result", 20000), waitPhase(B, "result", 20000)]);
-  const [sA, sB2] = await Promise.all([A.locator(".tag").innerText(), B.locator(".tag").innerText()]);
-  const serA = (sA.match(/Série soubojů: Mark (\d+) : (\d+) Radka/) || []), serB = (sB2.match(/Série soubojů: Mark (\d+) : (\d+) Radka/) || []);
-  check("série: po dvou soubojích stejná na obou stranách a má dva rozhodnuté/remízové souboje", serA[0] === serB[0] && +serA[1] + +serA[2] <= 2 && !!serA[0], `${serA[1]}:${serA[2]} / ${serB[1]}:${serB[2]}`);
+  const nums = t => (t.match(/(\d+) : (\d+)/) || []).slice(1).map(Number);
+  const [nA, nB] = await Promise.all([A.locator("#ser").innerText(), B.locator("#ser").innerText()]);
+  const sa = nums(nA), sb = nums(nB);
+  check("série: po dvou soubojích stejná na obou stranách (z pohledu každého) a nejvýš 2 výhry", sa.length === 2 && sb.length === 2 && sa[0] === sb[1] && sa[1] === sb[0] && sa[0] + sa[1] <= 2, `A ${nA} / B ${nB}`);
   const hudSer = await A.locator("#ser").innerText();
   check("HUD: série v hodinách", /série \d : \d/.test(hudSer), hudSer);
   check("bez chyb v konzoli", errs.length === 0, errs.slice(0, 3).join(" | "));

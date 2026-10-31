@@ -217,38 +217,49 @@ const ICONS = {
 
 // ---------- obrazovky v panelu ----------
 const panel = $("panel");
-function showView(name, html) {
+function showView(name, html, wide) {
   const same = view === name;
   view = name;
+  document.body.dataset.view = name || "";
   panel.hidden = !html;
-  panel.innerHTML = html ? `<section class="tag${same ? " still" : ""}" data-view="${name}">${html}</section>` : "";
+  panel.innerHTML = html ? `<section class="tag${wide ? " wide" : ""}${same ? " still" : ""}" data-view="${name}">${html}</section>` : "";
   panel.scrollTop = 0;
+  panel.querySelectorAll("details.how").forEach(d => { d.open = innerHeight >= 800; });   // na nízkém displeji sbalené
   const first = panel.querySelector("[autofocus]");
   if (first && matchMedia("(pointer: fine)").matches) first.focus();
 }
-const howTo = (ms, id = "") => `<p class="how"${id ? ` id="${id}"` : ""}>Táhni prstem nebo myší přes ovoce, <b>bomby nesekej</b>. Tři a víc kusů jedním tahem nebo <b>karambola</b> (hvězda) pošle soupeři naschvál: šmouhu, mráz nebo bombu navíc. Hraje se jedno kolo na ${lenAcc(ms)}, vyhrává vyšší skóre.</p>`;
+// obrazovka ve dvou sloupcích (desktop, telefon na šířku) nebo pod sebou (mobil na výšku): části podle oblastí mřížky
+const cols = o => `<div class="cols">${["head", "intro", "form", "how", "deco", "cta"].map(k => o[k] ? `<div class="a-${k}">${o[k]}</div>` : "").join("")}</div>`;
+const DECO = `<svg class="deco" viewBox="0 0 220 96" aria-hidden="true"><g transform="rotate(-14 110 58)"><path d="M50 56a60 60 0 0 0 120 0z" fill="#1D5428"/><path d="M56 56a54 54 0 0 0 108 0z" fill="#2F7D3A"/><path d="M62 56a48 48 0 0 0 96 0z" fill="#F1E6D0"/><path d="M66 56a44 44 0 0 0 88 0z" fill="#E8414B"/><g fill="#1B1A17"><ellipse cx="92" cy="78" rx="3.2" ry="5.5"/><ellipse cx="110" cy="88" rx="3.2" ry="5.5"/><ellipse cx="128" cy="78" rx="3.2" ry="5.5"/></g></g><path d="M18 20L206 62" stroke="#1B1A17" stroke-opacity=".25" stroke-width="9" stroke-linecap="round"/><path d="M18 20L206 62" stroke="#C8372D" stroke-width="3.5" stroke-linecap="round"/><circle cx="168" cy="22" r="4" fill="#C8372D"/><circle cx="186" cy="12" r="2.6" fill="#C8372D"/></svg>`;
+const howText = ms => `Táhni prstem nebo myší přes ovoce, <b>bomby nesekej</b>. Tři a víc kusů jedním tahem nebo <b>karambola</b> (hvězda) pošle soupeři naschvál: šmouhu, mráz nebo bombu navíc. Hraje se jedno kolo na ${lenAcc(ms)}, vyhrává vyšší skóre.`;
+const howTo = (ms, id = "") => `<details class="how"${id ? ` id="${id}"` : ""}><summary>Jak se hraje</summary><p>${howText(ms)}</p></details>`;
 
 function viewSetup() {
   phase = "menu"; $("hud").hidden = true;
   const last = Net.store.get("ovs-name") || "";
-  showView("setup", `
-    <h1>Ovocný souboj</h1>
-    <p>Sekáte naráz, každý na svém displeji, stejné ovoce ve stejném pořadí. Kdo má na konci kola víc bodů, bere souboj.</p>
-    <label for="fMe">Tvoje jméno</label><input id="fMe" type="text" maxlength="18" autocomplete="given-name" value="${esc(last)}" placeholder="třeba Mark" autofocus>
-    <label for="fOpp">Koho vyzýváš</label><input id="fOpp" type="text" maxlength="18" placeholder="třeba Radka">
+  showView("setup", cols({
+    head: `<h1>Ovocný souboj</h1>`,
+    intro: `<p class="opt">Sekáte naráz, každý na svém displeji, stejné ovoce ve stejném pořadí. Kdo má na konci kola víc bodů, bere souboj.</p>`,
+    form: `
+    <div class="pair">
+      <div><label for="fMe">Tvoje jméno</label><input id="fMe" type="text" maxlength="18" autocomplete="given-name" value="${esc(last)}" placeholder="třeba Mark" autofocus></div>
+      <div><label for="fOpp">Koho vyzýváš</label><input id="fOpp" type="text" maxlength="18" placeholder="třeba Radka"></div>
+    </div>
     <span class="lab" id="lenLab">Jak dlouhé kolo</span>
     <div class="chips" id="lenChips" role="group" aria-labelledby="lenLab">${Sim.ROUND_OPTIONS.map(ms => `<button type="button" data-ms="${ms}" aria-pressed="${ms === Sim.ROUND_MS}">${ms / 60000} ${ms === 60000 ? "minuta" : "minuty"}</button>`).join("")}</div>
     <span class="lab" id="stakeLab">O co hrajeme <span class="small">(nepovinné)</span></span>
     <div class="chips" id="chips" role="group" aria-labelledby="stakeLab">${STAKES.map(s => `<button type="button" aria-pressed="false">${s}</button>`).join("")}</div>
-    <input id="fStake" type="text" maxlength="40" placeholder="nebo napiš vlastní sázku" style="margin-top:8px">
-    <button class="btn" id="bCreate">Připravit výzvu</button>
-    ${howTo(Sim.ROUND_MS, "setupHow")}`);
+    <input id="fStake" type="text" maxlength="40" placeholder="nebo napiš vlastní sázku" style="margin-top:8px">`,
+    how: howTo(Sim.ROUND_MS, "setupHow"),
+    deco: DECO,
+    cta: `<button class="btn" id="bCreate">Připravit výzvu</button>`,
+  }), true);
   const chips = $("chips"), stake = $("fStake"), lens = $("lenChips");
   const pickedMs = () => +lens.querySelector("[aria-pressed=true]").dataset.ms;
   lens.addEventListener("click", e => {
     const b = e.target.closest("button"); if (!b) return;
     lens.querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
-    $("setupHow").outerHTML = howTo(+b.dataset.ms, "setupHow");
+    $("setupHow").querySelector("p").innerHTML = howText(+b.dataset.ms);
   });
   chips.addEventListener("click", e => {
     const b = e.target.closest("button"); if (!b) return;
@@ -275,15 +286,16 @@ function message() {
 function viewShare() {
   phase = "menu"; $("hud").hidden = true;
   const g = room.meta.g;
-  showView("share", `
-    <h2>Výzva visí na stánku. Pošli ji${g.b ? " " + esc(g.b) : ""}.</h2>
-    <p>Odkaz posíláš jen jednou, na něm pak hrajete všechna kola i odvety.</p>
-    <textarea class="msg" id="msg" readonly>${esc(message())}</textarea>
-    <div class="row">
+  showView("share", cols({
+    head: `<h2>Výzva visí na stánku. Pošli ji${g.b ? `, ať ${esc(g.b)} ví` : ""}.</h2>`,
+    intro: `<p>Odkaz posíláš jen jednou, na něm pak hrajete všechna kola i odvety.</p>`,
+    form: `<textarea class="msg" id="msg" readonly>${esc(message())}</textarea>`,
+    cta: `<div class="row">
       <button class="btn" id="bShare"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3M7 8l5-5 5 5"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg>Poslat</button>
       <button class="btn" id="bCopy"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="8" width="13" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg>Kopírovat</button>
     </div>
-    <button class="btn alt" id="bLobby">Jít ke stánku a počkat</button>`);
+    <button class="btn alt" id="bLobby">Jít ke stánku a počkat</button>`,
+  }), true);
   if (!navigator.share) $("bShare").remove();
   $("bShare")?.addEventListener("click", async () => { try { await navigator.share({ text: message() }); } catch {} });
   $("bCopy").addEventListener("click", async () => {
@@ -295,13 +307,13 @@ function viewShare() {
 function viewIntro() {
   phase = "menu"; $("hud").hidden = true;
   const g = room.meta.g;
-  showView("intro", `
-    <h1>${esc(g.a)} tě vyzývá</h1>
-    <p class="chalk">na Ovocný souboj: ${lenNom(g.rl)} sekání, stejné ovoce pro oba, vyhrává vyšší skóre.</p>
-    ${g.st ? `<div class="stake">Hrajeme o: ${esc(g.st)}</div>` : ""}
-    <label for="fName">Tvoje jméno</label><input id="fName" type="text" maxlength="18" value="${esc(g.b || Net.store.get("ovs-name") || "")}" placeholder="jak ti říkat" autofocus>
-    <button class="btn" id="bAccept">Přijmout výzvu</button>
-    ${howTo(g.rl)}`);
+  showView("intro", cols({
+    head: `<h1>${esc(g.a)} tě vyzývá</h1>`,
+    intro: `<p class="chalk">na Ovocný souboj: ${lenNom(g.rl)} sekání, stejné ovoce pro oba, vyhrává vyšší skóre.</p>${g.st ? `<div class="stake">Hrajeme o: ${esc(g.st)}</div>` : ""}`,
+    form: `<label for="fName">Tvoje jméno</label><input id="fName" type="text" maxlength="18" value="${esc(g.b || Net.store.get("ovs-name") || "")}" placeholder="jak ti říkat" autofocus>`,
+    how: howTo(g.rl),
+    cta: `<button class="btn" id="bAccept">Přijmout výzvu</button>`,
+  }), true);
   $("bAccept").addEventListener("click", accept);
 }
 function viewWatch() {
@@ -490,7 +502,7 @@ function hudOppState() {
   if (!room || !room.seat || phase === "play") return;
   const o = room.opp, go = room.meta.g.go || 0, d = mine();
   let s = "";
-  if (!room.meta.so) s = "ještě nepřijal(a)";
+  if (!room.meta.so) s = "zatím bez odpovědi";
   else if (o && o.rdy > go) s = "připraveno";
   else if (phase === "wait" && o && o.k === K && !(K in (o.h || {}))) s = "ještě seká";
   $("stateOpp").textContent = s;
@@ -521,8 +533,7 @@ function viewLobby() {
     <h2>${joined ? "Stánek je otevřený" : `Čekám, až ${esc(oppName())} přijme výzvu`}</h2>
     ${g.st ? `<div class="stake">Hrajeme o: ${esc(g.st)}</div>` : ""}
     <p style="margin-top:12px">${joined ? (rdy ? `Jakmile bude ${esc(oppName())} taky připraven(a), naskočí odpočet.` : "Až klepneš, počkáme na soupeře a pak odpočet 3, 2, 1.") : "Odkaz už máš poslaný? Hra se rozjede sama, jakmile výzvu přijme."}</p>
-    ${joined ? `<button class="btn" id="bReady" ${rdy ? "disabled" : ""}>${rdy ? "Čekám na soupeře…" : "Jdu do toho"}</button>` : `<button class="btn alt" id="bBack">Znovu poslat odkaz</button>`}
-    ${howTo(g.rl)}`);
+    ${joined ? `<button class="btn" id="bReady" ${rdy ? "disabled" : ""}>${rdy ? "Čekám na soupeře…" : "Jdu do toho"}</button>` : `<button class="btn alt" id="bBack">Znovu poslat odkaz</button>`}`);
   panel.dataset.sig = sig;
   $("bReady")?.addEventListener("click", () => ready(next));
   $("bBack")?.addEventListener("click", viewShare);
@@ -536,7 +547,7 @@ function viewWaiting() {
   const sig = "waiting|" + stalled;
   if (view === "waiting" && panel.dataset.sig === sig) return;
   const n = esc(oppName());
-  if (!stalled) showView("waiting", `<h2>Hotovo! Čekám na ${n}…</h2><p>Soupeř ještě dosekává. Výsledek naskočí sám.</p>`);
+  if (!stalled) showView("waiting", `<h2>Hotovo! ${n} ještě dosekává…</h2><p>Výsledek naskočí sám, jakmile dohraje i soupeř.</p>`);
   else {
     showView("waiting", `<h2>${n} se pořád neozývá</h2>
       <p>Možná ztratil(a) signál, zamkl(a) telefon nebo zavřel(a) stránku. Tvoje skóre je uložené, výsledek naskočí, jakmile ${n} dohraje.</p>
@@ -564,23 +575,24 @@ function viewResult(hx, ho) {
   const wName = w => esc(nameOfSeat(w));
   const hi = Math.max(r.x, r.o), lo = Math.min(r.x, r.o);
   const ser = Sim.series(hx, ho);
-  const head = st.winner ? `Souboj bere ${wName(st.winner)} ${hi} : ${lo}` : `Souboj končí remízou ${hi} : ${lo}`;
+  const head = st.winner ? `Souboj bere ${wName(st.winner)}` : "Remíza";
+  const headScore = `${head} ${hi} : ${lo}`;   // do chatu i se skóre
   const side = (seat, name, score) => `<div class="p ${seat}${st.winner === seat ? " win" : ""}"><div class="n">${esc(name)}</div><div class="s">${score}</div><div class="st">${st.winner ? (st.winner === seat ? "bere souboj" : "chce odvetu") : "remíza"}</div></div>`;
-  let extra = "";
-  if (g.st) extra = `<div class="stake">${st.winner ? `${wName(other(st.winner))} platí: ${esc(g.st)}` : `Sázka (${esc(g.st)}) zůstává ve hře`}</div>`;
-  extra += `<p class="small" style="margin-top:10px">Série soubojů: ${esc(g.a)} ${ser[0]} : ${ser[1]} ${esc(g.b)}</p>`;
   const oppRdy = room.opp && room.opp.rdy >= nextK;
-  showView("result", `
-    <h2>${head}</h2>
-    <div class="vs">${side("x", g.a, r.x)}<div class="mid">:</div>${side("o", g.b, r.o)}</div>
-    ${extra}
-    <button class="btn" id="bNext" ${rdy ? "disabled" : ""}>${rdy ? "Čekám na soupeře…" : "Odveta"}</button>
-    <p class="small" style="margin:8px 0 0;text-align:center">${oppRdy ? `${esc(oppName())} už čeká na tebe.` : rdy ? "Odpočet naskočí, až klepne i soupeř. Nechce se mu? Pošli odkaz a vraťte se později." : ""}</p>
-    <button class="btn alt" id="bShareRes">Poslat výsledek do chatu</button>`);
+  const stake = g.st ? `<div class="stake">${st.winner ? `${wName(other(st.winner))} platí: ${esc(g.st)}` : `Sázka (${esc(g.st)}) zůstává ve hře`}</div>` : "";
+  const hint = oppRdy ? `${esc(oppName())} už čeká na tebe.` : rdy ? "Odpočet naskočí, až klepne i soupeř. Nechce se mu? Pošli odkaz a vraťte se později." : "";
+  showView("result", cols({
+    head: `<h2>${head}</h2>`,
+    form: `<div class="vs">${side("x", g.a, r.x)}<div class="mid">:</div>${side("o", g.b, r.o)}</div>`,
+    intro: stake,
+    cta: `<button class="btn" id="bNext" ${rdy ? "disabled" : ""}>${rdy ? "Čekám na soupeře…" : "Odveta"}</button>
+    ${hint ? `<p class="small" style="margin:8px 0 0;text-align:center">${hint}</p>` : ""}
+    <button class="btn alt" id="bShareRes">Poslat výsledek do chatu</button>`,
+  }), true);
   panel.dataset.sig = sig;
   $("bNext").addEventListener("click", () => ready(nextK));
   $("bShareRes").addEventListener("click", async () => {
-    const t = `${head}${g.st && st.winner ? ` (${nameOfSeat(other(st.winner))} platí: ${g.st})` : ""}. Série ${g.a} ${ser[0]} : ${ser[1]} ${g.b}. Odveta? ${linkFor()}`;
+    const t = `${headScore}${g.st && st.winner ? ` (${nameOfSeat(other(st.winner))} platí: ${g.st})` : ""}. Série ${g.a} ${ser[0]} : ${ser[1]} ${g.b}. Odveta? ${linkFor()}`;
     try { if (navigator.share) await navigator.share({ text: t }); else { await navigator.clipboard.writeText(t); toast("Zkopírováno."); } } catch {}
   });
 }
@@ -727,7 +739,7 @@ function hit(o, p, dx, dy, now, speed) {
   addScore(pts);
   if (o.kind === "karambola") {
     const sent = sendSabotage("bomba", p.x, p.y);
-    float(p.x, p.y, `+${pts}<small>${sent ? `bomba letí k ${esc(oppName())}` : "karambola"}</small>`);
+    float(p.x, p.y, `+${pts}<small>${sent ? `bomba letí k soupeři` : "karambola"}</small>`);
   } else if (pts > 1) float(p.x, p.y, `+${pts}`);
   const s = game.stroke || (game.stroke = { n: 0, last: now, x: p.x, y: p.y });
   s.n++; s.last = now; s.x = p.x; s.y = p.y;
@@ -740,7 +752,7 @@ function endStroke() {
     addScore(bonus);
     const type = Sim.sabotageFor(s.n, null);
     const sent = sendSabotage(type, s.x, s.y);
-    float(s.x, s.y - 40, `Combo ${s.n}! +${bonus}<small>${sent ? (type === "mraz" ? "mráz" : "šmouha") + ` letí k ${esc(oppName())}` : "naschvál se ještě nabíjí"}</small>`);
+    float(s.x, s.y - 40, `Combo ${s.n}! +${bonus}<small>${sent ? (type === "mraz" ? "mráz" : "šmouha") + ` letí k soupeři` : "naschvál se ještě nabíjí"}</small>`);
     sound.combo(s.n); buzz(25);
     window.__ovs.log.push({ ev: "combo", n: s.n, sent: sent ? type : null, at: Date.now() });
   }
@@ -849,8 +861,7 @@ function frame(now) {
     if (now > idleNext && game.live.length < 3 && !document.hidden) {
       idleNext = now + 1400 + idleRng() * 900;
       const kinds = [...Sim.FRUITS, "karambola"];
-      // na desktopu visí nabídka vlevo, ovoce létá hlavně vpravo od ní
-      const u = deskMQ.matches ? -0.1 + idleRng() * 0.85 : (idleRng() * 2 - 1) * 0.7;
+      const u = (idleRng() * 2 - 1) * 0.7;
       spawnItem({ kind: kinds[Math.floor(idleRng() * kinds.length)], u, vu: -u * 0.5, apex: 1 + idleRng() * 5, spin: [idleRng(), idleRng(), idleRng(), 2] }, clock);
     }
     moveAll(clock);
