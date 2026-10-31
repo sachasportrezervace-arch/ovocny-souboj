@@ -13,7 +13,7 @@ const LOOK = {
   svestka: { skin: ["#3E2E7A", "#5B44A8"], flesh: "#F2B13C", juice: "#9B5BD4", scale: [0.86, 1, 0.86], r: 0.84, stem: true },
   citron: { skin: ["#F7D531", "#E9C21A"], flesh: "#FBEB8A", juice: "#FFE45C", scale: [1.26, 0.9, 0.9], r: 0.92 },
   jablko: { skin: ["#D9262E", "#F05A3A"], flesh: "#F7EDC7", juice: "#FFF1B8", scale: [1, 0.93, 1], r: 0.96, stem: true, leaf: true },
-  kiwi: { skin: ["#A67B45", "#7C5630"], flesh: "#8FC63F", juice: "#A6D654", scale: [1.12, 0.88, 0.88], r: 0.9 },
+  kiwi: { skin: ["#98923F", "#5D6128"], flesh: "#8FC63F", juice: "#A6D654", scale: [1.12, 0.88, 0.88], r: 0.9 },
   karambola: { skin: ["#FFC81F", "#F2B705"], flesh: "#FFE47A", juice: "#FFD84A", scale: [1, 1, 1], r: 1.05 },
   zlate: { skin: ["#FFD23F", "#E59E0C"], flesh: "#FFE9A0", juice: "#FFD84A", scale: [1, 0.94, 1], r: 1.0, stem: true, leaf: true },   // zlaté jablko (modifikátor a finále)
 };

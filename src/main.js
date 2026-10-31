@@ -93,9 +93,7 @@ function cloth(g, w, h, r) {
   g.fillStyle = "rgba(170,56,52,.2)";
   for (let x = ox; x < w; x += s * 2) g.fillRect(x, 0, s, h);
   for (let y = oy; y < h; y += s * 2) g.fillRect(0, y, w, s);
-  g.strokeStyle = "rgba(255,235,225,.03)"; g.lineWidth = 1;
-  for (let y = 0; y < h; y += 4) { g.beginPath(); g.moveTo(0, y + 0.5); g.lineTo(w, y + 0.5); g.stroke(); }
-  for (let x = 0; x < w; x += 4) { g.beginPath(); g.moveTo(x + 0.5, 0); g.lineTo(x + 0.5, h); g.stroke(); }
+  // jemný rastr tkaniny (čáry po 4 px) byl pod škálováním plátna moaré a na telefonu šuměl, proto pryč
   for (let i = 0; i < 2; i++) {
     const x0 = w * (0.2 + 0.5 * r()), gr = g.createLinearGradient(x0 - 90, 0, x0 + 90, h * 0.3);
     gr.addColorStop(0, "rgba(0,0,0,0)"); gr.addColorStop(0.5, "rgba(0,0,0,.22)"); gr.addColorStop(1, "rgba(0,0,0,0)");
@@ -141,7 +139,7 @@ function winter(g, w, h, r) {
   const n = Math.round(10 + w * h / 90000);
   g.strokeStyle = "rgba(230,242,255,.2)"; g.lineCap = "round";
   for (let i = 0; i < n; i++) {
-    const x = r() * w, y = r() * h, L = 7 + r() * 13, a0 = r();
+    const x = r() * w, y = r() * h, L = (7 + r() * 13) * (w < 600 ? 0.7 : 1), a0 = r();
     g.lineWidth = 1.2 + L / 10;
     for (let k = 0; k < 6; k++) {
       const a = a0 + k * Math.PI / 3, ex = x + Math.cos(a) * L, ey = y + Math.sin(a) * L;
@@ -156,8 +154,8 @@ function spring(g, w, h, r) {
   walnut(g, w, h, r);
   const n = Math.round(9 + w * h / 110000);
   for (let i = 0; i < n; i++) {
-    const x = r() * w, y = r() * h, s = 9 + r() * 9, a0 = r() * 6.283;
-    g.save(); g.translate(x, y); g.rotate(a0); g.globalAlpha = 0.62;
+    const x = r() * w, y = r() * h, s = (9 + r() * 9) * (w < 600 ? 0.72 : 1), a0 = r() * 6.283;   // na úzkém displeji menší, ať nesoupeří s ovocem
+    g.save(); g.translate(x, y); g.rotate(a0); g.globalAlpha = w < 600 ? 0.5 : 0.62;
     g.fillStyle = r() < 0.5 ? "hsl(345 62% 78%)" : "hsl(340 48% 86%)";
     for (let k = 0; k < 5; k++) { g.rotate(Math.PI * 2 / 5); g.beginPath(); g.ellipse(0, -s * 0.62, s * 0.42, s * 0.62, 0, 0, 6.283); g.fill(); }
     g.globalAlpha = 0.8; g.fillStyle = "hsl(44 90% 62%)"; g.beginPath(); g.arc(0, 0, s * 0.2, 0, 6.283); g.fill();

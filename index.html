@@ -90,7 +90,7 @@ body.shake #gl { animation: shake .38s linear; }
 @keyframes chargeFull { to { filter: brightness(1.7); } }
 /* dohánění: kdo je výrazně pozadu, nabíjí rychleji; vidět jen na měřiči (tlustší, pruhy, záře v barvě hráče) */
 .charge { transition: height .2s; }
-.charge.boost { height: 10px; box-shadow: 0 0 0 2px var(--c), 0 0 12px var(--c); }
+.charge.boost { height: 10px; box-shadow: 0 0 0 2px var(--c), 0 0 12px var(--c); background: repeating-linear-gradient(-45deg, rgba(255,255,255,.16) 0 7px, rgba(255,255,255,.3) 7px 14px); }   /* i prázdný měřič je při dohánění pruhovaný */
 .charge.boost i { background: repeating-linear-gradient(-45deg, var(--c) 0 7px, rgba(255,255,255,.62) 7px 14px); background-size: 20px 20px; animation: boostRun .45s linear infinite; }
 @keyframes boostRun { to { background-position: 20px 0; } }
 .sign.hit { animation: hit .6s ease-out; }
@@ -219,7 +219,7 @@ body.finale .clock .modico { filter: drop-shadow(0 0 6px rgba(255,200,80,.8)); }
 .vs .p.win .s { text-decoration: underline 4px; text-underline-offset: 6px; }
 .vs .p .st { font-size: 13px; font-weight: 600; color: var(--ink-soft); margin-top: 2px; }
 .vs .p .bl { display: inline-block; margin-top: 8px; padding: 3px 10px; border-radius: 99px; background: var(--board); box-shadow: inset 0 0 0 2px var(--board-edge); line-height: 0; }
-.vs .p .bl svg { width: 64px; height: 16px; }
+.vs .p .bl svg { width: 80px; height: 20px; }
 .vs .p .bl.new { animation: blPop .7s cubic-bezier(.2,.9,.3,1); }
 @keyframes blPop { 0% { transform: scale(.4) rotate(-10deg); opacity: 0; } 100% { transform: scale(1) rotate(0); opacity: 1; } }
 .vs .mid { font-family: var(--disp); font-size: 22px; color: var(--ink-soft); }

@@ -2,6 +2,13 @@
 
 PŘEVZATO 31. 10. – dodělává session na účtu P, jiná session sem nepíše.
 
+## 2026-10-31 večer (Claude, subagent: tři životy + design-eye 2. kolo)
+- **Příčina pádu „tři životy“ (z dat):** (1) headless WebKit bez GPU kreslil iPhone při DPR 3 jen ~6 snímků/s (změřeno i na starším commitu b131589, závisí jen na DPR: @1× 50, @2× 16, @3× 6), bot viděl zastaralé polohy; (2) ve hře ~3 % kusů vyjelo bokem z obrazovky (`spreadOut` posune `u`, `vu` zůstane, kus plul k okraji až mimo displej, bot pak začínal tah mimo viewport). Dvě další varianty selhání: zpoždění `oppF` přes mantledb.sh až 5,7 s (síť, mimo hru).
+- **Opravy:** `Sim.keepIn`/`KEEP_X` v `src/sim.js` (bez bomb), bomba hledá místo i v širším rozsahu drah; `tests/sim.test.mjs` +2 regresní testy (okraj, dosažitelnost prvních 15 s); `tests/mody.cjs`: tah bota nezačíná mimo displej a B jede na deviceScaleFactor 1 (komentář v kódu).
+- **Design-eye 2. kolo:** nakonec „ano, profi indie hra“. Opraveno: kiwi olivové (vypadalo jako brambora), květy jara a vločky zimy menší na mobilu, bez moaré rastru na ubrusu, pruhovaná dráha měřiče při dohánění, větší vzorek čepele.
+- **Ověřeno (port 8801, exit 0):** sim.test 21/21 · kolize 17/17 · duel 49/49 · mody 21/21 (2×) · vyzva-b 26/26 · rozmanitost 32/32.
+- **Zbývá / NEOVĚŘENO:** push dělá hlavní session; živé ověření na Pages; skutečný iPhone (60 snímků/s) a tempo tří životů; design-eye neviděl landscape 844×390 a reduced motion; ostatní testy (duel, vyzva-b, rozmanitost) pořád jedou na WebKit @3× (pomalé, ale prošly).
+
 ## 2026-10-31 ~19:30 PŘEDÁVKA (Claude, session na účtu P, kontext plný) – Ovocný souboj: kolize, finále, rozmanitost
 - **Hotovo (lokálně, NEPUSHNUTO):** commity `3db56cb` (WIP po přerušení), `f2a4116` + poslední commit „Design-eye opravy…“ (viz `git log`).
   - Kolize: švih jako úsečka proti pohybujícímu se kusu (`Sim.sweptDist`), ovoce 1,28 r + 9 px, bomba 60 % r. Bomba v rozpisu nikdy blíž než 0,6 součtu poloměrů (`clearBombs`), bomba v řadě má mezeru navíc, kusy vyhozené naráz se rozestoupí (`spreadOut`, `row` u řad). Finále nepouští staré kusy, které by v něm visely > 1,5 s.

@@ -84,4 +84,5 @@ Cíl: tři kola za sebou se musí lišit, ale férově. Všechno náhodné se be
 - Ovoce má zásahovou zónu 1,28 × poloměr + 9 px, bomba jen 60 % poloměru: počítá se, jen když čepel projde blízko jejího středu.
 - Rozpis: bomba se nikdy nesejde s jiným kusem blíž než 0,6 součtu poloměrů (posune se v čase nebo do vedlejší dráhy, jinak uvolní místo nebo vypadne). Bomba v řadě má kolem sebe mezeru navíc. Bomba je vždy vpředu, ovoce ve čtyřech hloubkách.
 - Dva kusy vyhozené skoro naráz, které by se letem schovaly jeden za druhý, se rozestoupí do vedlejší dráhy (`spreadOut`); řady na combo letí souběžně a rozestup drží. Všechno deterministicky, oba hráči mají stejný rozpis.
+- Ovoce neodplouvá z obrazovky bokem (`Sim.keepIn`, `Sim.KEEP_X` 0,84): vodorovný posun se zkrátí tak, aby kus padal nejdál 0,84 půlky šířky od středu. Dřív ~3 % kusů vyjelo bokem a ve třech životech to byl život za nic (nalezeno z dat pádu v `tests/mody.cjs`). Bomby se neořezávají.
 - Regresní testy: `node tests/sim.test.mjs` a `node tests/kolize.cjs <URL>` (Chromium desktop + WebKit iPhone 13).
