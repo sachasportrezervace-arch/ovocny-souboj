@@ -1,3 +1,4 @@
 tests/shots/
 .impeccable/
 node_modules/
+.claude/

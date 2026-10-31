@@ -1,1 +1,0 @@
-{ "version": "0.0.1", "configurations": [ { "name": "ovocny-souboj", "runtimeExecutable": "python", "runtimeArgs": ["-m", "http.server", "8797", "--bind", "127.0.0.1"], "port": 8797 } ] }
