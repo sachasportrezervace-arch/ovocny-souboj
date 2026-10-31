@@ -12,6 +12,7 @@ const STAKES = ["kafe", "zmrzlina", "drink", "vybírá vítěz"];
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const other = s => s === "x" ? "o" : "x";
 const clampName = s => (s || "").trim().replace(/\s+/g, " ").slice(0, 18);
+const sameName = (a, b) => !!a && !!b && a.toLocaleLowerCase("cs") === b.toLocaleLowerCase("cs");
 
 // ---------- 3D a plátno čepele ----------
 const scene = createScene($("gl"), { reduced });
@@ -328,6 +329,7 @@ function viewSetup() {
   $("bCreate").addEventListener("click", async () => {
     const a = clampName($("fMe").value), b = clampName($("fOpp").value);
     if (!a) { $("fMe").focus(); toast("Napiš svoje jméno, ať soupeř ví, kdo ho vyzývá."); return; }
+    if (sameName(a, b)) { $("fOpp").focus(); toast("Soupeř nemůže mít stejné jméno jako ty. Napiš jeho jméno, nebo pole nech prázdné."); return; }
     Net.store.set("ovs-name", a);
     $("bCreate").disabled = true; $("bCreate").textContent = "Chystám výzvu…";
     try { await createRoom(a, b || "", stake.value.trim().slice(0, 40), pickedMs()); }
@@ -369,9 +371,10 @@ function viewIntro() {
     intro: `<p class="chalk">na Ovocný souboj: ${lenNom(g.rl)} sekání, stejné ovoce pro oba, vyhrává vyšší skóre.</p>${g.st ? `<div class="stake">Hrajeme o: ${esc(g.st)}</div>` : ""}`,
     form: `<label for="fName">Tvoje jméno</label><input id="fName" type="text" maxlength="18" value="${esc(g.b || Net.store.get("ovs-name") || "")}" placeholder="jak ti říkat" autofocus>`,
     how: howTo(g.rl),
-    cta: `<button class="btn" id="bAccept">Přijmout výzvu</button>`,
+    cta: `<button class="btn" id="bAccept">Přijmout výzvu</button><button class="btn alt" id="bMine">Jsem ${esc(g.a)}, výzvu jsem založil(a) já</button>`,
   }), true);
   $("bAccept").addEventListener("click", accept);
+  $("bMine").addEventListener("click", () => takeSeat("x"));   // vlastní výzva otevřená v jiném úložišti (Safari, plocha, prohlížeč v chatu)
 }
 function viewWatch() {
   phase = "menu"; $("hud").hidden = true;
@@ -446,6 +449,7 @@ async function attachSeat(fresh) {
 async function accept() {
   const name = clampName($("fName").value);
   if (!name) { $("fName").focus(); toast("Napiš svoje jméno, ať víš, komu fandit."); return; }
+  if (sameName(name, room.meta.g.a)) { $("fName").focus(); toast(`Výzvu založil(a) ${room.meta.g.a}. Jsi to ty? Klepni na „Jsem ${room.meta.g.a}“, jinak napiš své jméno.`); return; }
   Net.store.set("ovs-name", name);
   $("bAccept").disabled = true; $("bAccept").textContent = "Přijímám…";
   try {
