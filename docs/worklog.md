@@ -8,6 +8,7 @@ PŘEVZATO 31. 10. – dodělává session na účtu P, jiná session sem nepíš
 - **Ověřeno (port 8801):** `sim.test.mjs` 25/25 · `kolize.cjs` 17/17 · `feel.cjs` 12/12 (1. běh 11/12: první naschvál po 20 s při souběžném design-eye, 2. běh čistý) · `float.cjs` 6/6 · `solo.cjs` 43/43 · `duel.cjs` 49/49 · `mody.cjs` 21/21 · `herna.cjs` 32/32 · `rozmanitost.cjs` 32/32 · `vyzva-b.cjs` 25/26 (jen známá chyba WebKitu u utnutých požadavků po `goto`, viz 31. 10.).
 - **Design-eye:** 1. kolo „ještě ne“ (slova přes plochu, obří prstenec, malý žeton) → opraveno; 2. kolo „ano, profi indie hra“. Snímky `tests/shots/kolo-1-11`, `kolo-2-11/head`.
 - **NEOVĚŘENO:** živý playtest dvou lidí a skutečný iPhone (pocit z finále a napětí jen ze simulace botů a snímků); půlka jablka působí šedě (design-eye, drobné); zlatá hvězda finále není plochý vektor.
+- **Živě (push `30988d9..e42d52a`, Pages = HEAD podle md5 main.js):** `solo.cjs` 43/43 · `kolize.cjs` 17/17 · `herna.cjs` 3 běhy: 31/32, timeout 3. partie, 31/32 – pokaždé jen síťové časování mantledb (po reloadu nepřišel `vysledek` do limitu; stejné jako 31. 10.), lokálně 32/32; protokol Herny se dnes neměnil.
 - **Dál:** slupka půlky u světlé dužiny (`src/scene.js` `slice`), plochá hvězda finále.
 
 ## 2026-10-31 noc – NASAZENO napojení na Hernu 2ff83f2 (Claude, účet P)
