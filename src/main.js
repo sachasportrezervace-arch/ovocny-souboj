@@ -1389,7 +1389,7 @@ function hit(o, p, dx, dy, now, speed, precise) {
       window.__ovs.log.push({ ev: "reflect", sent, at: Date.now() });
     } else {
       addScore(Sim.POINTS.precise); addCharge(Sim.CHARGE.precise - Sim.CHARGE.cut);
-      float(p.x, p.y - 34, `+${Sim.POINTS.precise}`, "precise");   // bez slov: zlaté číslo, prstenec a cinknutí
+      float(p.x, p.y - 64, `+${Sim.POINTS.precise}`, "precise");   // bez slov: zlaté číslo, prstenec a cinknutí
     }
     window.__ovs.log.push({ ev: "precise", kind: o.kind, frozen: frozenHit, at: Date.now() });
   }
@@ -1404,7 +1404,7 @@ function endStroke() {
     addScore(bonus);
     const type = Sim.sabotageFor(s.n, null);
     const sent = sendSabotage(type, s.x, s.y);
-    float(s.x, s.y - 40, `+${bonus}`, "combo");   // bez slov: větší číslo, stoupající akord a odlet žetonu naschválu
+    float(s.x, s.y - 78, `+${bonus}`, "combo");   // bez slov: větší číslo, stoupající akord a odlet žetonu naschválu
     sound.combo(s.n); buzz(25);
     window.__ovs.log.push({ ev: "combo", n: s.n, sent: sent ? type : null, at: Date.now() });
   }

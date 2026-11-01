@@ -3,6 +3,13 @@
 PŘEVZATO 1. 11. – kolo vylepšení, session ovocny-souboj (kolo); jiná session sem nepíše.
 PŘEVZATO 31. 10. – dodělává session na účtu P, jiná session sem nepíše.
 
+## 2026-11-01 – kolo vylepšení (Claude, session ovocny-souboj kolo)
+- **Hotovo:** (1) Finále podle délky kola: 2 min 8 vln (8,6 s), 1 min 5 vln (5,8 s), kus za 1 bod (`Sim.finaleLen`, `finaleWaves`). Simulace 400 kol dvou Kuchtíků: podíl bodů z finále 1 min 54 % → 35 %, 2 min 35 % → 28 %, vedoucí hráč ho ztratí ~20 % kol. (2) Šťáva řezu: proud ve směru švihu, kapky z půlek, bílý záblesk řezu 110 ms, „ššk“ čepele a každý další kus v tahu zní výš. (3) Naschvály: žeton s ikonou v barvě odesílatele letí od odesílatele k cíli (příchozí na místo účinku, šmouha naskočí s dopadem), ikona u cedulky 0,9 s. (4) Nové: napětí v Do 50 (kdokoli 10 bodů od cíle) a Tři životy (kdokoli na posledním životě): rudé tepající okraje, tep hodin, zvuk tepu. (5) Bez slov přes plochu („Přesně!“, „Combo“, „křup“ pryč, jen čísla), malý prstenec přesného řezu. (6) Bomba se nepočítá, dokud se prst nehne > 12 px od dotyku.
+- **Ověřeno (port 8801):** `sim.test.mjs` 25/25 · `kolize.cjs` 17/17 · `feel.cjs` 12/12 (1. běh 11/12: první naschvál po 20 s při souběžném design-eye, 2. běh čistý) · `float.cjs` 6/6 · `solo.cjs` 43/43 · `duel.cjs` 49/49 · `mody.cjs` 21/21 · `herna.cjs` 32/32 · `rozmanitost.cjs` 32/32 · `vyzva-b.cjs` 25/26 (jen známá chyba WebKitu u utnutých požadavků po `goto`, viz 31. 10.).
+- **Design-eye:** 1. kolo „ještě ne“ (slova přes plochu, obří prstenec, malý žeton) → opraveno; 2. kolo „ano, profi indie hra“. Snímky `tests/shots/kolo-1-11`, `kolo-2-11/head`.
+- **NEOVĚŘENO:** živý playtest dvou lidí a skutečný iPhone (pocit z finále a napětí jen ze simulace botů a snímků); půlka jablka působí šedě (design-eye, drobné); zlatá hvězda finále není plochý vektor.
+- **Dál:** slupka půlky u světlé dužiny (`src/scene.js` `slice`), plochá hvězda finále.
+
 ## 2026-10-31 noc – NASAZENO napojení na Hernu 2ff83f2 (Claude, účet P)
 - Push `4bff4f9..2ff83f2`, Pages = HEAD (md5 main.js).
 - Živě: `node tests/herna.cjs <URL>` exit 0, 32/32 (1. běh 31/32: po reloadu zakladatele přišel `stav konec` až po kontrole – časování, ne chyba protokolu) · `solo.cjs` exit 0, 43/43 · `vyzva-b.cjs` exit 0, 26/26.
