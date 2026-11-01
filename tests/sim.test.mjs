@@ -123,17 +123,18 @@ t("rozpis kola je pro oba hráče stejný a nese svůj modifikátor", () => {
     assert.ok(hasFin || !z.some(i => i.fin));
   }
 });
-t("finále: jen kolo na čas ≥ 45 s, posledních ~8,6 s, bez bomb, vlny 4 + 7×5, stejné pro oba, body navíc", () => {
+t("finále: jen kolo na čas ≥ 45 s, 2 min = 8 vln (8,6 s), 1 min = 5 vln (5,8 s), bez bomb, stejné pro oba", () => {
   assert.equal(S.hasFinale("cas", 120000), true); assert.equal(S.hasFinale("cas", 60000), true); assert.equal(S.hasFinale("cas", 15000), false);
   assert.equal(S.hasFinale("zavod", 90000), false); assert.equal(S.hasFinale("zivoty", 120000), false);
   for (const sd of SEEDS) for (const ms of [60000, 120000]) {
     const s = S.roundSchedule(sd, ms, "cas"), F0 = S.finaleStart(ms), fin = s.filter(i => i.fin);
-    assert.equal(fin.length, 39, "8 vln: 4 + 7 × 5 kusů");
+    assert.equal(fin.length, ms >= 100000 ? 39 : 24, "8 vln: 4 + 7 × 5 kusů, 5 vln: 4 + 4 × 5");
+    assert.ok(Math.abs(ms - F0 - (ms >= 100000 ? 8600 : 5800)) < 40, "délka finále " + (ms - F0));
     assert.ok(fin.every(i => i.t >= F0 && i.t < ms - 1500 && ["pomeranc", "svestka", "citron", "jablko", "kiwi", "zlate"].includes(i.kind)));
     assert.ok(fin[0].gm === 0.65 && fin.slice(4).every(i => i.gm === 1), "první vlna pomalu, další běžně");
     assert.ok(s.filter(i => i.kind === "bomba").every(i => i.t + S.flightTime(i) * 1000 < F0 + 50), "žádná bomba nedoletí do finále");
     assert.ok(s.filter(i => i.t >= F0 && i.kind !== "karambola").every(i => i.fin), "ve finále jen finálové kusy (a karambola)");
-    assert.ok(S.POINTS.finale >= 2 && S.POINTS.zlate > S.POINTS.finale);
+    assert.ok(S.POINTS.finale >= 1 && S.POINTS.zlate > S.POINTS.finale);
     let max = 0;
     for (let tt = F0; tt < ms; tt += 100) { let n = 0; for (const it of s) if (it.t <= tt && tt < it.t + S.flightTime(it) * 1000 && S.posAt(it, (tt - it.t) / 1000).y > -10) n++; max = Math.max(max, n); }
     assert.ok(max <= 20, `naráz ve finále ${max}`);

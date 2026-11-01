@@ -139,7 +139,7 @@ async function botStep(p, vp) {
   const gotN = data.map(d => d.log.filter(e => e.ev === "got").length), sendN = sends.map(a => a.length);
   console.log(`signalizace: ikona u soupeřova skóre zachycena A ${seen.A.icon}× / B ${seen.B.icon}× (doručeno ${gotN[0]} / ${gotN[1]}), pulz měřiče A ${seen.A.pulse}× / B ${seen.B.pulse}× (odesláno ${sendN[0]} / ${sendN[1]}), nejdelší animace ${Math.max(seen.A.dur, seen.B.dur)} / ${Math.max(seen.A.durPulse, seen.B.durPulse)} ms`);
   check("naschvál se doručil a ikona u soupeřova skóre bliknula (každá strana, která naschvál dostala)", gotN.every((n, i) => n === 0 || seen[i ? "B" : "A"].icon > 0) && gotN.some(n => n > 0), gotN.join("/"));
-  check("bliknutí ikony ≤ 400 ms a pulz měřiče u odesílatele ≤ 400 ms", Math.max(seen.A.dur, seen.B.dur) > 0 && Math.max(seen.A.dur, seen.B.dur) <= 400 && Math.max(seen.A.durPulse, seen.B.durPulse) > 0 && Math.max(seen.A.durPulse, seen.B.durPulse) <= 400);
+  check("bliknutí ikony ≤ 1 s (žeton od soupeře + ikona u jeho cedulky, ať jde přečíst, kdo co poslal) a pulz měřiče u odesílatele ≤ 400 ms", Math.max(seen.A.dur, seen.B.dur) > 0 && Math.max(seen.A.dur, seen.B.dur) <= 1000 && Math.max(seen.A.durPulse, seen.B.durPulse) > 0 && Math.max(seen.A.durPulse, seen.B.durPulse) <= 400);
   check("pulz měřiče u každého, kdo naschvál poslal", sendN.every((n, i) => n === 0 || seen[i ? "B" : "A"].pulse > 0), sendN.join("/"));
   const allTxt = data.flatMap(d => d.txt);
   check("žádný text o naschvále (banner pryč, plovoucí texty bez „letí/posílá/bomba od“)", data.every(d => d.noBanner) && !allTxt.some(t => /letí|posílá|podstrč|cákl|zmraz|mráz|šmouh|bomba od|nabíj|Náboj|Odraženo/i.test(t)), allTxt.length + " textů, např. " + [...new Set(allTxt)].slice(0, 6).join(" | "));

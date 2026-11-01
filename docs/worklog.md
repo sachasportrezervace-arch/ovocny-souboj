@@ -1,5 +1,6 @@
 # Ovocný souboj – deník
 
+PŘEVZATO 1. 11. – kolo vylepšení, session ovocny-souboj (kolo); jiná session sem nepíše.
 PŘEVZATO 31. 10. – dodělává session na účtu P, jiná session sem nepíše.
 
 ## 2026-10-31 noc – NASAZENO napojení na Hernu 2ff83f2 (Claude, účet P)

@@ -326,7 +326,7 @@ const sound = (() => {
   const ok = () => on && ac && ac.state === "running";
   return {
     swish(speed) { if (!ok()) return; const f = hiss(1200 + Math.min(speed, 4000) * 0.6, 1.2, 0.05, 0.12); f.frequency.exponentialRampToValueAtTime(600, ac.currentTime + 0.12); },
-    squish(pitch = 1) { if (!ok()) return; hiss(500 * pitch, 2, 0.22, 0.16, "lowpass"); tone(220 * pitch, 0.09, 0.12, "triangle", 0, 140 * pitch); },
+    squish(pitch = 1) { if (!ok()) return; hiss(5200, 1.4, 0.07, 0.05, "highpass"); hiss(500 * pitch, 2, 0.22, 0.16, "lowpass"); tone(220 * pitch, 0.09, 0.12, "triangle", 0, 140 * pitch); },
     crunch() { if (!ok()) return; hiss(3200, 3, 0.18, 0.12, "highpass"); tone(1800, 0.05, 0.05, "square"); },
     boom() { if (!ok()) return; hiss(180, 0.8, 0.55, 0.6, "lowpass"); tone(90, 0.45, 0.35, "sine", 0, 40); },
     combo(n) { if (!ok()) return; [0, 4, 7, 12].slice(0, Math.min(4, n)).forEach((s, i) => tone(523 * 2 ** (s / 12), 0.14, 0.11, "triangle", i * 0.07)); },
@@ -336,6 +336,7 @@ const sound = (() => {
     send() { if (!ok()) return; tone(660, 0.12, 0.08, "sine", 0, 1320); },
     miss() { if (!ok()) return; hiss(260, 1.2, 0.12, 0.14, "lowpass"); tone(196, 0.18, 0.13, "triangle", 0, 110); },
     finale() { if (!ok()) return; [0, 4, 7, 12, 16].forEach((s, i) => tone(392 * 2 ** (s / 12), 0.22, 0.1, "triangle", i * 0.06)); hiss(2400, 1, 0.08, 0.4, "highpass"); },
+    tension() { if (!ok()) return; tone(82, 0.16, 0.3, "sine", 0, 60); tone(82, 0.2, 0.26, "sine", 0.24, 60); },
     end() { if (!ok()) return; [0, 3, 7].forEach((s, i) => tone(392 * 2 ** (s / 12), 0.5, 0.09, "triangle", i * 0.12)); },
   };
 })();
@@ -412,15 +413,22 @@ function float(x, y, html, cls = "") {
   floatBoxes.push({ x, y, w, h, t });
   setTimeout(() => el.remove(), 1400);
 }
-function shot(x, y) {
-  const el = document.createElement("div"), r = $("signOpp").getBoundingClientRect();
-  el.className = "shot"; el.style.left = x - 8 + "px"; el.style.top = y - 8 + "px";
+// naschvál bez textu: žeton s ikonou (šmouha, mráz, bomba) v barvě odesílatele letí od odesílatele k cíli,
+// takže je vidět, kdo co poslal: můj žeton odlétá k soupeřově cedulce, soupeřův přilétá od jeho cedulky tam, kde naschvál zapůsobí
+function token(type, color, x0, y0, x1, y1, ms = 480) {
+  const el = document.createElement("div"), h = Math.min(48, Math.max(34, innerWidth * 0.032)) / 2;
+  el.className = "tok"; el.style.setProperty("--tc", color); el.style.left = x0 - h + "px"; el.style.top = y0 - h + "px";
+  el.style.transitionDuration = ms + "ms";
+  el.innerHTML = `<svg viewBox="0 0 34 34" aria-hidden="true">${ICONS[type](color)}</svg>`;
   $("floats").appendChild(el);
-  requestAnimationFrame(() => requestAnimationFrame(() => {
-    el.style.transform = `translate(${r.left + r.width / 2 - x}px, ${r.top + r.height / 2 - y}px) scale(.6)`;
-    el.style.opacity = "0.2";
-  }));
-  setTimeout(() => el.remove(), 650);
+  requestAnimationFrame(() => requestAnimationFrame(() => { el.style.transform = `translate(${x1 - x0}px, ${y1 - y0}px) rotate(${x1 > x0 ? 200 : -200}deg)`; }));
+  setTimeout(() => el.classList.add("pop"), ms);
+  setTimeout(() => el.remove(), ms + 260);
+}
+const signCenter = id => { const r = $(id).getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; };
+function shot(x, y, type) {
+  const [tx, ty] = signCenter("signOpp");
+  token(type, COLORS[room && room.seat ? room.seat : "x"], x, y, tx, ty);
 }
 const ICONS = {
   bomba: c => `<circle cx="16" cy="20" r="11" fill="#232B3D"/><rect x="5" y="18" width="22" height="4" fill="${c}"/><path d="M21 9 q4 -6 8 -3" stroke="#C8A26B" stroke-width="2" fill="none"/><circle cx="29" cy="6" r="3" fill="#FFD27A"/>`,
@@ -726,7 +734,7 @@ function startSolo(c, name) {
 }
 function leaveSolo() {
   stopPoll(); soloBot = null; room = null; delete document.body.dataset.solo;
-  document.body.classList.remove("finale"); setBoost(false); setModIcon(null);
+  document.body.classList.remove("finale", "napeti"); game.tension = false; setBoost(false); setModIcon(null);
   history.replaceState(null, "", location.pathname + location.search);
   viewSetup();
 }
@@ -1087,7 +1095,7 @@ function schedSig(s) {
   }
   return { n: s.length, kinds, hash: h, fin: s.filter(i => i.fin).length, big: s.filter(i => i.hp).length, moon: s.some(i => i.gm && i.gm !== 1 && !i.fin) };
 }
-// finále: kolo na čas, posledních ~8,6 s; deska se rozsvítí teplem, hodiny zezlátnou, zazní fanfára a krátce vyskočí zlatý znak (bez textu); první vlna plave pomalu
+// finále: kolo na čas, posledních 8,6 s (2 min) nebo 5,8 s (1 min); deska se rozsvítí teplem, hodiny zezlátnou, zazní fanfára a krátce vyskočí zlatý znak (bez textu); první vlna plave pomalu
 function startFinale(clock) {
   game.fin0 = true; game.scoreFin = game.score; game.queue.length = 0;
   document.body.classList.add("finale");
@@ -1126,7 +1134,7 @@ function beginCountdown(k, seed, rl, delay, md) {
   game.sched = Sim.roundSchedule(seed, game.rl, mdm).map(it => ({ ...it }));   // základ ze semínka + modifikátor kola + finále, stejné pro oba
   game.mod = Sim.modOf(seed); game.sig = schedSig(game.sched); game.fin0 = false; game.scoreFin = 0; game.finCuts = 0;
   game.finAt = Sim.hasFinale(mdm, game.rl) ? Sim.finaleStart(game.rl) : Infinity;
-  document.body.classList.remove("finale"); setBoost(false); game.blade = myTier(); setTheme(Sim.themeOf(seed)); showMod(game.mod);
+  document.body.classList.remove("finale", "napeti"); game.tension = false; setBoost(false); game.blade = myTier(); setTheme(Sim.themeOf(seed)); showMod(game.mod);
   game.next = 0; game.score = 0; game.ev = []; game.queue = []; game.lastSend = -1e9; game.lastApplied = -1e9;
   game.stroke = null; game.cuts = 0; game.bombs = 0; game.sent = 0; game.got = 0; game.doneAt = 0; game.waitHold = 0;
   game.precise = 0; game.charge = 0; game.fireN = 0; paintCharge(); window.__ovs.feel = { spawns: [], vis: [] };
@@ -1156,7 +1164,7 @@ function beginCountdown(k, seed, rl, delay, md) {
 function finishRound() {
   phase = "wait";
   if (room.solo) soloConclude();
-  document.body.classList.remove("finale"); setBoost(false); hideModBig();
+  document.body.classList.remove("finale", "napeti"); game.tension = false; setBoost(false); hideModBig();
   const d = mine();
   room.w.set({ sc: game.score, h: { ...d.h, [K]: game.score }, ...(game.fin != null ? { f: { ...(d.f || {}), [K]: game.fin } } : {}) }, true);
   sound.end(); buzz([70, 50, 140]);
@@ -1199,6 +1207,19 @@ function addCharge(n) {
   game.charge = Math.min(Sim.CHARGE_MAX, game.charge + n * m); paintCharge();
   cl.push([n, n * m, game.boost]); if (cl.length > 800) cl.shift();
 }
+// napětí v módech bez finále (bez textu, stejný jazyk jako finále): závod, když má kdokoli 10 bodů od cíle; tři životy, když je kdokoli
+// na posledním životě. Deska zčervená a pulzuje, rámeček hodin tepe, jednou zazní tep. Zůstane do konce kola (žádné blikání při −10 za bombu).
+function updateTension() {
+  if (game.tension || game.md === "cas" || game.fin != null) return;
+  const o = room.opp && room.opp.k === K ? room.opp : null;
+  const on = game.md === "zavod" ? Math.max(game.score, o ? o.sc || 0 : 0) >= game.tg - 10
+    : Math.min(game.lives, o && o.lv != null ? o.lv : Sim.LIVES) <= 1;
+  if (!on) return;
+  game.tension = true;
+  document.body.classList.add("napeti");
+  sound.tension(); buzz([20, 80, 20]);
+  window.__ovs.log.push({ ev: "napeti", md: game.md, score: game.score, lives: game.lives, at: Date.now() });
+}
 function setBoost(on) {
   if (game.boost === on) return;
   game.boost = on;
@@ -1227,7 +1248,7 @@ function sendSabotage(type, x, y, force) {
   room.w.set({ ev: game.ev }, true);
   if (room.solo && soloBot) soloBot.recv(type, now - game.start);
   sound.send();
-  shot(x, y);
+  shot(x, y, type);
   const ch = $("chargeMe"); ch.classList.remove("fire"); void ch.offsetWidth; ch.classList.add("fire");   // pulz měřiče, bez textu
   return true;
 }
@@ -1239,22 +1260,28 @@ function applySabotage(type) {
   ic.classList.remove("on"); void ic.getBoundingClientRect(); ic.classList.add("on");
   const sign = $("signOpp"); sign.classList.remove("hit"); void sign.offsetWidth; sign.classList.add("hit");
   sound.incoming(); buzz([40, 40, 40]);
+  const [sx, sy] = signCenter("signOpp"), H = scene.h;
   if (type === "bomba") {
-    game.sched.push({ ...Sim.sabotageBomb(game.sched, clock + 750), id: 1000 + game.got, spin: [0, 0, 1, 2], band: c, from: who });   // dráha nejdál od ostatních kusů
+    const b = Sim.sabotageBomb(game.sched, clock + 750);
+    game.sched.push({ ...b, id: 1000 + game.got, spin: [0, 0, 1, 2], band: c, from: who });   // dráha nejdál od ostatních kusů
+    token("bomba", c, sx, sy, (b.u * scene.fieldHalf / scene.halfW + 1) / 2 * scene.w, H - 30, 620);   // žeton zapadne tam, odkud bomba vyletí
     game.sched.sort((a, b) => a.t - b.t);
     game.next = Math.min(game.next, game.sched.findIndex(it => it.t > clock - 1));
     if (game.next < 0) game.next = game.sched.length - 1;
   } else if (type === "smouha") {
-    smear(c);
+    const at = smearSpot();
+    token("smouha", c, sx, sy, at[0] / 100 * scene.w, at[1] / 100 * H, 420);
+    setTimeout(() => { if (phase === "play") smear(c, at); }, 400);
   } else {
+    token("mraz", c, sx, sy, scene.w / 2, H * 0.72, 520);
     let n = 0;
     for (const it of game.sched) if (it.t > clock + 400 && it.kind !== "bomba" && it.kind !== "karambola" && it.kind !== "zlate" && !it.hp && !it.fin && !it.frozen && !it.spawned && n < 2) { it.frozen = true; n++; }
   }
   window.__ovs.log.push({ ev: "got", type, at: Date.now() });
 }
-function smear(c) {
-  const el = $("smear"), left = Math.random() < 0.5;
-  const cx = left ? 30 : 70, cy = 38 + Math.random() * 20;
+const smearSpot = () => [Math.random() < 0.5 ? 30 : 70, 38 + Math.random() * 20];
+function smear(c, [cx, cy] = smearSpot()) {
+  const el = $("smear");
   let blobs = "";
   for (let i = 0; i < 9; i++) {
     const a = i / 9 * Math.PI * 2, r = 9 + (i % 3) * 4;
@@ -1267,7 +1294,7 @@ function smear(c) {
 }
 
 // ---------- sekání ----------
-let trail = [], pointerDown = false, lastPt = null;
+let trail = [], pointerDown = false, lastPt = null, touchAt = null;
 // čas události ukazatele (ms jako performance.now()); když by prohlížeč dal jiný základ, vezme se přítomnost
 const ptrTime = e => { const n = performance.now(), t = e.timeStamp; return t > 0 && Math.abs(t - n) < 250 ? t : n; };
 const gclock = t => phase === "play" || phase === "count" ? t - game.start : t;
@@ -1287,6 +1314,8 @@ function cutTest(a, b) {
   const speed = Math.sqrt(len2);
   for (const o of [...game.live]) {
     if (o.dead || (o.immune && now < o.immune)) continue;
+    // bomba se nepočítá, dokud se prst od místa dotyku nehnul o víc než 12 px: položení prstu vedle bomby a jeho chvění nezabíjí
+    if (o.kind === "bomba" && touchAt && Math.hypot(ax - touchAt.x, ay - touchAt.y) < 12 && Math.hypot(bx - touchAt.x, by - touchAt.y) < 12) continue;
     const p0 = posOf(o, a.t), p = posOf(o, b.t);
     const rReal = o.r / scene.HALF_H * scene.h / 2 * scene.persp(o.g.position.z);
     if (Sim.sweptDist(ax, ay, bx, by, p0.x, p0.y, p.x, p.y) > Sim.hitRadius(o.kind, rReal)) continue;
@@ -1307,7 +1336,6 @@ function hit(o, p, dx, dy, now, speed, precise) {
   }
   if (o.ice) {
     scene.crack(o); o.immune = now + 160; o.frozen2 = true; sound.crunch();
-    float(p.x, p.y - 30, "křup", "");
     return;
   }
   if (o.it && o.it.hp && o.hp > 1) {
@@ -1332,7 +1360,9 @@ function hit(o, p, dx, dy, now, speed, precise) {
     return;
   }
   scene.slice(o, dx, dy);
-  sound.squish(o.kind === "meloun" ? 0.7 : 0.9 + Math.random() * 0.4);
+  cutFlash(p, dx, -dy, o);
+  const inStroke = game.stroke ? game.stroke.n : 0;
+  sound.squish((o.kind === "meloun" ? 0.7 : 0.9 + Math.random() * 0.25) * (1 + 0.09 * Math.min(inStroke, 6)));
   game.cuts++;
   game.lastPos = { x: p.x, y: p.y };
   addStain(p.x, p.y, o.kind);
@@ -1350,17 +1380,16 @@ function hit(o, p, dx, dy, now, speed, precise) {
   } else if (pts > 1) float(p.x, p.y, `+${pts}`);
   if (precise) {
     game.precise++;
-    scene.ring(o.g.position.x, o.g.position.y, "#FFE08A");
+    scene.ring(o.g.position.x, o.g.position.y, "#FFE08A", 10, 6.5);   // malý zlatý prstenec kolem kusu, ať nepřebije šťávu
     if (!reduced) scene.burst(o.g.position.x, o.g.position.y, JUICE[o.kind] || "#FFF1B8", 8, 13, 0.4, 0.6);
     sound.precise(); buzz(18);
     if (frozenHit) {
       // protiútok za dovednost: přesně rozseknutý led se vrací odesílateli jako mráz
       const sent = sendSabotage("mraz", p.x, p.y, true);
-      float(p.x, p.y - 34, "Přesně!", "precise");
       window.__ovs.log.push({ ev: "reflect", sent, at: Date.now() });
     } else {
       addScore(Sim.POINTS.precise); addCharge(Sim.CHARGE.precise - Sim.CHARGE.cut);
-      float(p.x, p.y - 34, `Přesně!<small>+${Sim.POINTS.precise}</small>`, "precise");
+      float(p.x, p.y - 34, `+${Sim.POINTS.precise}`, "precise");   // bez slov: zlaté číslo, prstenec a cinknutí
     }
     window.__ovs.log.push({ ev: "precise", kind: o.kind, frozen: frozenHit, at: Date.now() });
   }
@@ -1375,14 +1404,14 @@ function endStroke() {
     addScore(bonus);
     const type = Sim.sabotageFor(s.n, null);
     const sent = sendSabotage(type, s.x, s.y);
-    float(s.x, s.y - 40, `Combo ${s.n}! +${bonus}`);
+    float(s.x, s.y - 40, `+${bonus}`, "combo");   // bez slov: větší číslo, stoupající akord a odlet žetonu naschválu
     sound.combo(s.n); buzz(25);
     window.__ovs.log.push({ ev: "combo", n: s.n, sent: sent ? type : null, at: Date.now() });
   }
 }
 function ptr(e) { return { x: e.clientX, y: e.clientY, t: ptrTime(e) }; }
 blade.addEventListener("pointerdown", e => {
-  pointerDown = true; lastPt = ptr(e); trail = [lastPt];
+  pointerDown = true; lastPt = ptr(e); trail = [lastPt]; touchAt = lastPt;
   try { blade.setPointerCapture(e.pointerId); } catch {}
 });
 blade.addEventListener("pointermove", e => {
@@ -1403,12 +1432,30 @@ blade.addEventListener("pointerup", up);
 blade.addEventListener("pointercancel", up);
 blade.addEventListener("contextmenu", e => e.preventDefault());
 
+// záblesk řezu: tenká světlá čára přes rozseknutý kus ve směru švihu, ~110 ms
+const flashes = [];
+function cutFlash(p, dx, dy, o) {
+  const d = Math.hypot(dx, dy) || 1, r = o.r / scene.HALF_H * scene.h / 2 * scene.persp(o.g.position.z) * 1.5;
+  flashes.push({ x: p.x, y: p.y, ux: dx / d * r, uy: dy / d * r, t: performance.now() });
+  if (flashes.length > 8) flashes.shift();
+}
+function drawFlashes(now) {
+  for (let i = flashes.length - 1; i >= 0; i--) {
+    const f = flashes[i], k = (now - f.t) / 110;
+    if (k >= 1) { flashes.splice(i, 1); continue; }
+    bctx.globalAlpha = 0.9 * (1 - k); bctx.strokeStyle = "#FFFDF4"; bctx.lineWidth = 4 * (1 - k) + 1; bctx.lineCap = "round";
+    bctx.beginPath(); bctx.moveTo(f.x - f.ux, f.y - f.uy); bctx.lineTo(f.x + f.ux, f.y + f.uy); bctx.stroke();
+  }
+  bctx.globalAlpha = 1;
+}
+
 // čepel podle výher v sérii (Sim.BLADES): 0 klasická, 1 jiskry, 2 dvojitá, 3 zlatá a delší, 4+ duha s hvězdou na špičce. Jen vzhled, zásahy se nemění.
 const BLADE_LIFE = [120, 120, 120, 160, 170];
 function drawBlade(now) {
   const tier = game.blade | 0;
   trail = trail.filter(p => now - p.t < BLADE_LIFE[tier]);
   bctx.clearRect(0, 0, scene.w, scene.h);
+  if (flashes.length) drawFlashes(now);
   if (trail.length < 2) return;
   const me = room && room.seat ? COLORS[room.seat] : COLORS.x;
   const halo = tier === 3 ? "#FFC93C" : me, core = tier === 3 ? "#FFF4C2" : "#FFFCF2", n = trail.length;
@@ -1496,6 +1543,7 @@ function frame(now) {
     if (game.queue.length && now - game.lastApplied > 2600 && !game.fin0 && clock + 800 < game.finAt) applySabotage(game.queue.shift());
     tryFire(now);
     if (!game.fin0 && clock >= game.finAt) startFinale(clock);
+    updateTension();
     if (room.solo && soloBot) soloTick(clock);
     updateBoost();
     if (now - feelT > 100) {   // kolik kusů je právě vidět (pro tests/feel.cjs)

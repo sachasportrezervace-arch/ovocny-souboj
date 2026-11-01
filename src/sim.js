@@ -10,7 +10,7 @@ export const KIND_NAMES = {
   meloun: "meloun", pomeranc: "pomeranč", svestka: "švestka", citron: "citron", jablko: "jablko",
   kiwi: "kiwi", karambola: "karambola", bomba: "bomba",
 };
-export const POINTS = { fruit: 1, karambola: 3, frozen: 2, bomba: -10, precise: 2, zlate: 5, finale: 2 };
+export const POINTS = { fruit: 1, karambola: 3, frozen: 2, bomba: -10, precise: 2, zlate: 5, finale: 1 };   // finále: kus za 1, body sype hustota, combo každé vlny a zlatá poslední vlna
 export const CHARGE_MAX = 18;   // měřič naschválu: řez +1, přesný řez +3, karambola +5; plný pošle soupeři naschvál
 export const CHARGE = { cut: 1, precise: 3, karambola: 5, zlate: 3, obri: 2 };
 export const FIRE_ORDER = ["smouha", "mraz", "bomba"];
@@ -286,9 +286,14 @@ export function pickSeed(prev, rand = Math.random) {
 
 // Finále: posledních ~8,6 s kola na čas je „fontána“: vlna po vlně ovoce za 2 body bez bomb. Závod nemá pevný konec a ve třech životech
 // kolo končí smrtí, ne časem, takže finále mají jen kola na čas (a ne zkrácená testovací, < 45 s).
-export const FINALE_MS = 8600;
+// Délka finále roste s kolem: 2 min = 8 vln (8,6 s), 1 min = 5 vln (5,8 s). Dřív mělo 1min kolo taky 8,6 s a finále dalo přes
+// polovinu všech bodů (simulace 400 kol s Kuchtíky), takže první část kola skoro nerozhodovala.
+export const FINALE_STEP = 943;
+export const finaleWaves = ms => ms >= 100000 ? 8 : 5;
+export const finaleLen = ms => 2000 + (finaleWaves(ms) - 1) * FINALE_STEP;
+export const FINALE_MS = finaleLen(ROUND_MS);
 export const hasFinale = (md, ms) => md === "cas" && ms >= 45000;
-export const finaleStart = ms => ms - FINALE_MS;
+export const finaleStart = ms => ms - finaleLen(ms);
 // kam až modifikátor sahá: u kola na čas po začátek finále, u závodu a tří životů do typické délky kola
 export const spanFor = (md, ms) => hasFinale(md, ms) ? finaleStart(ms) - 500 : Math.min(ms, md === "zavod" ? 45000 : md === "zivoty" ? 75000 : ms);
 
@@ -341,7 +346,7 @@ export function addFinale(list, seed, ms) {
   // pryč kusy po začátku finále, bomby, které by do finále doletěly, a ostatní kusy, které by ve finále visely déle než 1,5 s
   const out = list.filter(i => i.t < F0 && i.t + flightTime(i) * 1000 <= F0 + (i.kind === "bomba" ? 0 : 1500));
   const add = (t, kind, o) => out.push({ id: 0, t: Math.round(t), kind, vu: 0, spin: spinOf(r), fin: true, ...o });
-  const waves = 8, step = (FINALE_MS - 2000) / (waves - 1);
+  const waves = finaleWaves(ms), step = FINALE_STEP;
   for (let w = 0; w < waves; w++) {
     const t = F0 + w * step, slow = w === 0 ? 0.65 : 1, line = w % 2 === 1, size = w === 0 ? 4 : 5, dir = r() < 0.5 ? 1 : -1;
     for (let k = 0; k < size; k++) {

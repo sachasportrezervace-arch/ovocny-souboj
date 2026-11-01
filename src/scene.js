@@ -196,7 +196,7 @@ export function createScene(canvas, opts = {}) {
   }
 
   // ---------- kapky šťávy a jiskry: jeden Points, pevný pool ----------
-  const PMAX = opts.reduced ? 160 : 320;
+  const PMAX = opts.reduced ? 160 : 480;
   const pPos = new Float32Array(PMAX * 3), pCol = new Float32Array(PMAX * 3), pSize = new Float32Array(PMAX);
   const pVel = new Float32Array(PMAX * 2), pLife = new Float32Array(PMAX), pGrav = new Float32Array(PMAX);
   const pGeo = new THREE.BufferGeometry();
@@ -235,9 +235,9 @@ export function createScene(canvas, opts = {}) {
     }
   }
   // prstenec jisker pro přesný řez
-  function ring(x, y, color, n = 20) {
-    if (opts.reduced) n = 8;
-    for (let k = 0; k < n; k++) { const a = k / n * Math.PI * 2; emit(x, y, 1.5, Math.cos(a) * 15, Math.sin(a) * 15, color, 0.4, 0.5, 0.1); }
+  function ring(x, y, color, n = 20, speed = 15) {
+    if (opts.reduced) n = Math.min(n, 8);
+    for (let k = 0; k < n; k++) { const a = k / n * Math.PI * 2; emit(x, y, 1.5, Math.cos(a) * speed, Math.sin(a) * speed, color, 0.4, 0.5, 0.1); }
   }
   function stepParticles(dt) {
     for (let i = 0; i < PMAX; i++) {
@@ -311,10 +311,20 @@ export function createScene(canvas, opts = {}) {
       scene.add(g);
       halves.push({
         g, vx: dir.x * 3.2 + o.vx * 0.6, vy: dir.y * 3.2 + o.vy * 0.5 + 1.5,
-        axis: new THREE.Vector3(d.x, d.y, 0.3).normalize(), w: (4 + Math.random() * 3) * sgn, life: 3,
+        axis: new THREE.Vector3(d.x, d.y, 0.3).normalize(), w: (4 + Math.random() * 3) * sgn, life: 3, c: L.juice, drip: 0.45,
       });
     }
-    burst(base.x, base.y, L.juice, 12, 11, 0.34, 0.6);
+    // šťáva: kulatý střik, proud ve směru švihu (oběma směry, dopředu víc) a pár těžkých kapek, které odpadnou s půlkami
+    const many = opts.reduced ? 0.5 : 1;
+    burst(base.x, base.y, L.juice, 8, 10, 0.34, 0.55);
+    for (let k = 0; k < Math.round(18 * many); k++) {
+      const fw = k % 3 ? 1 : -0.5, s = (11 + Math.random() * 13) * fw, j = (Math.random() - 0.5) * 2.6;
+      emit(base.x, base.y, 1.5, d.x * s + n.x * j, d.y * s + n.y * j + 2, L.juice, 0.26 + Math.random() * 0.3, 0.42 + Math.random() * 0.3, 0.7);
+    }
+    for (let k = 0; k < Math.round(4 * many); k++) {
+      const sgn = k % 2 ? 1 : -1;
+      emit(base.x + n.x * sgn * 0.3, base.y + n.y * sgn * 0.3, 1.5, n.x * sgn * (2 + Math.random() * 2), n.y * sgn * 2 + 3 + Math.random() * 2, L.juice, 0.6 + Math.random() * 0.3, 0.8, 1.2);
+    }
   }
   // zásah obřího melounu, který ještě drží: zmenší se, vystříkne šťáva (hp řeší main.js)
   function hurt(o) {
@@ -340,6 +350,7 @@ export function createScene(canvas, opts = {}) {
       h.g.position.x += h.vx * dt; h.g.position.y += h.vy * dt;
       h.g.rotateOnWorldAxis(h.axis, h.w * dt);
       h.life -= dt;
+      if (h.drip > 0 && !opts.reduced) { h.drip -= dt; if (Math.random() < 0.5) emit(h.g.position.x, h.g.position.y, 1.4, h.vx * 0.3, h.vy * 0.3 - 1, h.c, 0.2 + Math.random() * 0.15, 0.4, 1); }   // půlka chvíli kape šťávou
       if (h.life <= 0 || h.g.position.y < -HALF_H - 3) { scene.remove(h.g); halves.splice(i, 1); }
     }
   }

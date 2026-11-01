@@ -127,10 +127,10 @@ body[data-mode="zivoty"] .lives { display: flex; }
 #count span { animation: pop .9s cubic-bezier(.2,.9,.3,1) both; }
 #count .go { font-size: .5em; color: var(--bulb); }
 @keyframes pop { 0% { transform: scale(1.6); opacity: 0; } 25% { transform: scale(1); opacity: 1; } 80% { opacity: 1; } 100% { opacity: 0; transform: scale(.92); } }
-/* naschvál soupeře bez textu: krátké bliknutí ikony na rohu jeho cedulky (≤ 400 ms), nic přes hrací plochu */
+/* naschvál soupeře bez textu: bliknutí ikony na rohu jeho cedulky (0,9 s) a žeton letící od cedulky k místu účinku, nic přes hrací plochu */
 .sabicon { position: absolute; top: -9px; right: -7px; width: 28px; height: 28px; padding: 3px; box-sizing: border-box; border-radius: 50%; background: var(--linen); box-shadow: 0 2px 6px rgba(0,0,0,.4); opacity: 0; pointer-events: none; z-index: 2; }
-.sabicon.on { animation: sabblink .38s ease-out; }
-@keyframes sabblink { 0% { opacity: 0; transform: scale(.5); } 25% { opacity: 1; transform: scale(1.18); } 70% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(1); } }
+.sabicon.on { animation: sabblink .9s ease-out; }
+@keyframes sabblink { 0% { opacity: 0; transform: scale(.5); } 12% { opacity: 1; transform: scale(1.22); } 30% { transform: scale(1); } 80% { opacity: 1; } 100% { opacity: 0; } }
 /* velké znamení modifikátoru při odpočtu (bez textu), pod číslicemi */
 #modBig { position: fixed; left: 50%; top: calc(var(--app-h) * .73); width: min(28vw, 140px); aspect-ratio: 1; transform: translate(-50%, -50%) scale(.4); opacity: 0; pointer-events: none; filter: drop-shadow(0 8px 16px rgba(0,0,0,.45)); }
 #modBig svg { width: 100%; height: 100%; display: block; }
@@ -144,6 +144,12 @@ body.finale #stage::after { opacity: 1; }
 .clock { transition: box-shadow .4s; }
 body.finale .clock { box-shadow: 0 0 0 3px #FFC93C, 0 0 20px rgba(255,190,60,.75), 0 6px 14px rgba(0,0,0,.35); }
 body.finale .clock .modico { filter: drop-shadow(0 0 6px rgba(255,200,80,.8)); }
+/* napětí (závod 10 bodů od cíle, tři životy na posledním životě): deska rudne a pomalu tepe, rámeček hodin tepe; bez textu */
+#stage::before { content: ""; position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 55%, rgba(255,90,60,0) 40%, rgba(220,50,40,.22) 78%, rgba(160,20,20,.38)); opacity: 0; transition: opacity .7s; pointer-events: none; z-index: 1; }
+body.napeti #stage::before { opacity: 1; animation: tepot 1.1s ease-in-out infinite; }
+body.napeti .clock { animation: tepClock 1.1s ease-in-out infinite; }
+@keyframes tepot { 0%, 100% { opacity: .65; } 18% { opacity: 1; } 32% { opacity: .75; } 46% { opacity: .95; } }
+@keyframes tepClock { 0%, 100% { box-shadow: 0 0 0 2px var(--tomato), 0 6px 14px rgba(0,0,0,.35); } 18%, 46% { box-shadow: 0 0 0 4px var(--tomato), 0 0 18px rgba(240,80,60,.7), 0 6px 14px rgba(0,0,0,.35); } }
 #board { transition: opacity .36s; }
 #floats { position: fixed; left: 0; top: 0; width: 100%; height: var(--app-h); pointer-events: none; overflow: hidden; }
 .float { position: absolute; font-family: var(--disp); font-size: 22px; white-space: nowrap; transform: translate(-50%, -50%); color: var(--linen); text-shadow: 0 2px 0 rgba(21,12,7,.9), 0 0 10px rgba(21,12,7,.75); animation: rise 1.1s ease-out forwards; }
@@ -152,8 +158,13 @@ body.finale .clock .modico { filter: drop-shadow(0 0 6px rgba(255,200,80,.8)); }
 .float.miss { font-family: var(--disp); font-weight: 400; font-size: 52px; line-height: 1; color: #FF8A7A; text-shadow: 0 3px 0 rgba(21,12,7,.9), 0 0 12px rgba(21,12,7,.7); }
 .float.precise { font-size: 30px; color: #FFE08A; text-shadow: 0 3px 0 rgba(60,30,0,.7), 0 0 14px rgba(255,200,90,.55); animation-duration: 1.3s; }
 .float.precise small { color: #FFF4D6; font-size: 22px; }
+.float.combo { font-size: 34px; color: #FFE9B8; }
 @keyframes rise { 0% { opacity: 0; transform: translate(-50%, -30%) scale(.8); } 12% { opacity: 1; transform: translate(-50%, -50%) scale(1.05); } 65% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -120%) scale(1); } }
-.shot { position: absolute; width: 16px; height: 16px; border-radius: 50%; background: var(--me); box-shadow: 0 0 0 3px rgba(0,0,0,.3); transition: transform .55s cubic-bezier(.5,0,.6,1), opacity .55s; }
+/* žeton naschválu: ikona na lněném kolečku s obrubou v barvě odesílatele, letí od odesílatele k cíli a na konci praskne */
+.tok { position: absolute; width: clamp(34px, 3.2vw, 48px); height: clamp(34px, 3.2vw, 48px); padding: 4px; box-sizing: border-box; border-radius: 50%; background: var(--linen); box-shadow: 0 0 0 3px var(--tc), 0 0 16px 4px var(--tc), 0 5px 12px rgba(0,0,0,.45); transition-property: transform; transition-timing-function: cubic-bezier(.45,0,.55,1); will-change: transform; }
+.tok svg { width: 100%; height: 100%; display: block; }
+.tok.pop { animation: tokPop .26s ease-out forwards; }
+@keyframes tokPop { to { opacity: 0; scale: 1.9; } }
 
 /* ---------- panel: papírová visačka přibitá na desce ---------- */
 /* panel se odscrolluje sám (overscroll contain), stránka pod ním stojí; tag má margin:auto = vystředěný, ale nikdy neuříznutý */
@@ -322,6 +333,7 @@ body[data-view="setup"] #iosHint:not([hidden]), body[data-view="intro"] #iosHint
   @keyframes fadeOnly { 0%, 70% { opacity: 1; } 100% { opacity: 0; } }
   #count span { animation: fadeOnly .9s linear both !important; }
   #smear.on { animation: smearCalm 2.8s linear forwards; }
+  body.napeti #stage::before, body.napeti .clock { animation: none; }
   #smear.on .drip { animation: none; }
   @keyframes smearCalm { 0% { opacity: .8; } 60% { opacity: .7; } 100% { opacity: 0; } }
   .charge.fire { animation: chargeFireCalm .36s linear; }
@@ -331,7 +343,7 @@ body[data-view="setup"] #iosHint:not([hidden]), body[data-view="intro"] #iosHint
   @keyframes chargeFireCalm { 35% { box-shadow: 0 0 0 2px var(--c), 0 0 10px var(--c); } }
   .sabicon.on { animation: sabblinkCalm .38s linear; }
   @keyframes sabblinkCalm { 0% { opacity: 0; } 25%, 70% { opacity: 1; } 100% { opacity: 0; } }
-  .shot { transition: opacity .3s; }
+  .tok { transition-duration: .01ms !important; }
 }
 </style>
 </head>

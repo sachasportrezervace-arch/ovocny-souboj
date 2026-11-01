@@ -75,9 +75,19 @@ Cíl: tři kola za sebou se musí lišit, ale férově. Všechno náhodné se be
 - **Stopy čepele** za výhry v sérii: 1 výhra jiskry, 2 dvojitá čepel, 3 zlatá a delší, 4+ duha s hvězdou. Vzorek je pod skóre na výsledku, nová krátce vyskočí.
 
 ## Finále kola („jak v Ninja Fruitu na konci“)
-- Posledních ~8,6 s kola **na čas** je fontána: 8 vln po ~1 s, střídá se vějíř přes celou šířku a řada na combo. Žádné bomby a žádné naschvály, kus za 2 body, v poslední vlně tři zlaté.
+- Konec kola **na čas** je fontána: vlny po ~0,94 s, střídá se vějíř přes celou šířku a řada na combo. 2 min = 8 vln (8,6 s), 1 min = 5 vln (5,8 s). Žádné bomby a žádné naschvály, kus za 1 bod (body sype hustota a combo každé vlny), v poslední vlně tři zlaté.
+- **Proč ne víc (1. 11.):** simulace 400 kol dvou Kuchtíků (`Sim.roundSchedule` + `src/bot.js`) ukázala, že s kusem za 2 body a 8,6 s i v 1min kole dávalo finále 54 % všech bodů (2 min 35 %), takže první část kola skoro nerozhodovala. Teď 35 % (1 min) a 28 % (2 min); vedoucí hráč finále prohraje zhruba v 1 z 5 kol, zvrat je možný, ne povinný.
 - Ohlášení bez textu: deska se rozsvítí teplým světlem, hodiny zezlátnou, zazní fanfára a krátce vyskočí zlatý znak (hvězda s ovocem). První vlna plave pomalu jako nádech.
-- **Do 50 bodů** finále nemá (nemá pevný konec), **Tři životy** taky ne (kolo končí smrtí, ne časem).
+- **Do 50 bodů** finále nemá (nemá pevný konec), **Tři životy** taky ne (kolo končí smrtí, ne časem). Místo něj mají **napětí**: v závodě, jakmile má kdokoli 10 bodů od cíle, ve třech životech, jakmile je kdokoli na posledním životě. Okraje desky zrudnou a tepou, rámeček hodin tepe, jednou zazní tep. Bez textu, drží do konce kola.
+
+## Naschvály bez textu: kdo co poslal (1. 11.)
+- Odeslaný naschvál letí jako **žeton** (lněné kolečko s ikonou šmouhy, mrazu nebo bomby, obruba v mé barvě) z místa řezu k soupeřově cedulce.
+- Příchozí naschvál přiletí jako žeton v barvě soupeře **od jeho cedulky na místo, kde zapůsobí**: šmouha naskočí až s dopadem žetonu, bomba tam, odkud vyletí, mráz doprostřed spodní části plochy. Ikona na rohu jeho cedulky svítí 0,9 s (dřív 0,38 s, nešla přečíst).
+
+## Šťáva řezu (1. 11.)
+- Proud šťávy ve směru švihu (víc dopředu), kulatý střik, těžké kapky, půlky chvíli kapou; přes kus problikne bílá čára řezu (~110 ms).
+- Zvuk: ostré „ššk“ čepele před mlasknutím a každý další kus v jednom tahu zní o kousek výš.
+- Bomba se nepočítá, dokud se prst od místa dotyku nehne o víc než 12 px (položení prstu vedle bomby nezabíjí).
 
 ## Kolize (2026-10-31)
 - Řez se počítá jako průnik úsečky tahu s pohybujícím se kusem (`Sim.sweptDist`), takže rychlý švih ani kus uletělý mezi snímky se nepřeskočí.
